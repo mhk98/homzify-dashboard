@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getLogo, getSiteName } from "../utils/siteBranding";
+import { assetUrl } from "../utils/assetUrl";
 import {
   connectNotificationSocket,
   disconnectNotificationSocket,
@@ -278,12 +279,30 @@ export default function TopNav({
           <NavBtn
             color="bg-green-500"
             label="Visit Site"
-            onClick={() => window.open(SITE_URL, "_blank", "noopener,noreferrer")}
+            onClick={() =>
+              window.open(SITE_URL, "_blank", "noopener,noreferrer")
+            }
           />
-          <NavBtn color="bg-blue-500" label="Landing Page" onClick={() => onQuickNavigate?.("landing")} />
-          <NavBtn color="bg-orange-400" label="Visitors" onClick={() => onQuickNavigate?.("visitors")} />
-          <NavBtn color="bg-pink-500" label="POS" onClick={() => onQuickNavigate?.("pos")} />
-          <NavBtn color="bg-emerald-500" label="Expense" onClick={() => onQuickNavigate?.("expense")} />
+          <NavBtn
+            color="bg-blue-500"
+            label="Landing Page"
+            onClick={() => onQuickNavigate?.("landing")}
+          />
+          <NavBtn
+            color="bg-orange-400"
+            label="Visitors"
+            onClick={() => onQuickNavigate?.("visitors")}
+          />
+          <NavBtn
+            color="bg-pink-500"
+            label="POS"
+            onClick={() => onQuickNavigate?.("pos")}
+          />
+          <NavBtn
+            color="bg-emerald-500"
+            label="Expense"
+            onClick={() => onQuickNavigate?.("expense")}
+          />
           <NavBtn
             color="bg-red-500"
             label="Full Tutorial"
@@ -394,7 +413,10 @@ export default function TopNav({
                           type="button"
                           aria-label="Delete notification"
                           onClick={(event) =>
-                            deleteNotification(event, notificationId(notification))
+                            deleteNotification(
+                              event,
+                              notificationId(notification),
+                            )
                           }
                           className="mr-3 mt-3 hidden self-start text-gray-300 hover:text-red-500 group-hover:block"
                         >
@@ -418,7 +440,7 @@ export default function TopNav({
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center shrink-0">
               {user?.image ? (
                 <img
-                  src={`https://api.digitalever.com.bd/${user.image}`}
+                  src={assetUrl(user.image)}
                   alt=""
                   className="w-8 h-8 rounded-full object-cover"
                 />

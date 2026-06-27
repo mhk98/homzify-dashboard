@@ -12,10 +12,9 @@ import {
 } from "lucide-react";
 import { useProducts } from "../../hooks/useProducts";
 import { productService } from "../../services/productService";
+import { backendBaseUrl } from "../../utils/assetUrl";
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
-  "https://api.digitalever.com.bd";
+const BASE_URL = backendBaseUrl();
 
 function parseImages(images) {
   if (Array.isArray(images)) return images;

@@ -1,6 +1,6 @@
-const BASE_URL =
-  import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
-  "https://api.digitalever.com.bd";
+import { backendBaseUrl } from "../utils/assetUrl";
+
+const BASE_URL = backendBaseUrl();
 const fmt = (n) => Number(n || 0).toLocaleString("en-BD");
 
 export default function TopProducts({ topProducts = [], loading, onViewAll }) {

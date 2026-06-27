@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { apiRequest } from "../utils/apiClient";
+import { backendBaseUrl } from "../utils/assetUrl";
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
-  "https://api.digitalever.com.bd";
+const BASE_URL = backendBaseUrl();
 
 export default function StockAlert({ onViewAll }) {
   const [products, setProducts] = useState([]);

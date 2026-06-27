@@ -19,10 +19,9 @@ import {
   useSubcategories,
 } from "../hooks/useProducts";
 import { orderService } from "../services/orderService";
+import { backendBaseUrl } from "../utils/assetUrl";
 
-const ASSET_BASE_URL =
-  import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
-  "https://api.digitalever.com.bd";
+const ASSET_BASE_URL = backendBaseUrl();
 
 // ── Delivery areas ─────────────────────────────────────────
 const deliveryAreas = [
@@ -60,7 +59,9 @@ function parseImages(images) {
 function imageValue(image) {
   if (!image) return "";
   if (typeof image === "string") return image;
-  return image.url || image.file || image.filename || image.name || image.path || "";
+  return (
+    image.url || image.file || image.filename || image.name || image.path || ""
+  );
 }
 
 function productImageSrc(image) {
@@ -190,7 +191,10 @@ export default function CreateOrderPage({ onNavigate }) {
       const categoryId = toId(sub.categoryId || sub.category?.Id);
       if (!categoryId) return acc;
       acc[categoryId] = acc[categoryId] || [];
-      acc[categoryId].push({ ...sub, children: childrenBySub[toId(sub.Id)] || [] });
+      acc[categoryId].push({
+        ...sub,
+        children: childrenBySub[toId(sub.Id)] || [],
+      });
       return acc;
     }, {});
 
@@ -208,9 +212,12 @@ export default function CreateOrderPage({ onNavigate }) {
         id: p.Id,
         name: p.name,
         brand: p.brand?.name || p.brandName || "",
-        price: Number(p.variations?.[0]?.newPrice || p.variations?.[0]?.price || 0),
+        price: Number(
+          p.variations?.[0]?.newPrice || p.variations?.[0]?.price || 0,
+        ),
         stock:
-          p.variations?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) ?? 0,
+          p.variations?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) ??
+          0,
         sku: p.sku || p.variations?.[0]?.sku || "",
         categoryId: toId(p.categoryId || p.category?.Id),
         subcategoryId: toId(p.subcategoryId || p.subcategory?.Id),
@@ -479,84 +486,84 @@ export default function CreateOrderPage({ onNavigate }) {
               const categoryKey = `category:${cat.Id}`;
               const isExpanded = expandedCat === cat.Id;
               return (
-              <div key={cat.Id}>
-                <div
-                  onClick={() => {
-                    setActiveCategory(categoryKey);
-                    setExpandedCat(isExpanded ? null : cat.Id);
-                    setExpandedSub(null);
-                  }}
-                  className={`flex items-center justify-between px-3 py-2.5 cursor-pointer text-xs font-medium transition ${
-                    activeCategory === categoryKey
-                      ? "bg-teal-500 text-white"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <span>{cat.name}</span>
-                  {cat.children.length > 0 &&
-                    (isExpanded ? (
-                      <ChevronDown size={12} />
-                    ) : (
-                      <ChevronRight size={12} />
-                    ))}
-                </div>
-                {cat.children.length > 0 && isExpanded && (
-                  <div className="bg-gray-50 border-l-2 border-teal-400 ml-3">
-                    {cat.children.map((sub) => {
-                      const subKey = `subcategory:${sub.Id}`;
-                      const isSubExpanded = expandedSub === sub.Id;
-                      return (
-                        <div key={sub.Id}>
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveCategory(subKey);
-                              setExpandedSub(isSubExpanded ? null : sub.Id);
-                            }}
-                            className={`flex items-center justify-between px-3 py-2 text-xs cursor-pointer transition ${
-                              activeCategory === subKey
-                                ? "bg-teal-50 text-teal-700 font-semibold"
-                                : "text-gray-600 hover:bg-teal-50 hover:text-teal-700"
-                            }`}
-                          >
-                            <span>{sub.name}</span>
-                            {sub.children.length > 0 &&
-                              (isSubExpanded ? (
-                                <ChevronDown size={11} />
-                              ) : (
-                                <ChevronRight size={11} />
-                              ))}
-                          </div>
-                          {sub.children.length > 0 && isSubExpanded && (
-                            <div className="ml-3 border-l border-teal-200">
-                              {sub.children.map((child) => {
-                                const childKey = `childcategory:${child.Id}`;
-                                return (
-                                  <div
-                                    key={child.Id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveCategory(childKey);
-                                    }}
-                                    className={`px-3 py-1.5 text-[11px] cursor-pointer transition ${
-                                      activeCategory === childKey
-                                        ? "text-teal-700 font-semibold"
-                                        : "text-gray-500 hover:text-teal-700"
-                                    }`}
-                                  >
-                                    {child.name}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                <div key={cat.Id}>
+                  <div
+                    onClick={() => {
+                      setActiveCategory(categoryKey);
+                      setExpandedCat(isExpanded ? null : cat.Id);
+                      setExpandedSub(null);
+                    }}
+                    className={`flex items-center justify-between px-3 py-2.5 cursor-pointer text-xs font-medium transition ${
+                      activeCategory === categoryKey
+                        ? "bg-teal-500 text-white"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span>{cat.name}</span>
+                    {cat.children.length > 0 &&
+                      (isExpanded ? (
+                        <ChevronDown size={12} />
+                      ) : (
+                        <ChevronRight size={12} />
+                      ))}
                   </div>
-                )}
-              </div>
-            );
+                  {cat.children.length > 0 && isExpanded && (
+                    <div className="bg-gray-50 border-l-2 border-teal-400 ml-3">
+                      {cat.children.map((sub) => {
+                        const subKey = `subcategory:${sub.Id}`;
+                        const isSubExpanded = expandedSub === sub.Id;
+                        return (
+                          <div key={sub.Id}>
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveCategory(subKey);
+                                setExpandedSub(isSubExpanded ? null : sub.Id);
+                              }}
+                              className={`flex items-center justify-between px-3 py-2 text-xs cursor-pointer transition ${
+                                activeCategory === subKey
+                                  ? "bg-teal-50 text-teal-700 font-semibold"
+                                  : "text-gray-600 hover:bg-teal-50 hover:text-teal-700"
+                              }`}
+                            >
+                              <span>{sub.name}</span>
+                              {sub.children.length > 0 &&
+                                (isSubExpanded ? (
+                                  <ChevronDown size={11} />
+                                ) : (
+                                  <ChevronRight size={11} />
+                                ))}
+                            </div>
+                            {sub.children.length > 0 && isSubExpanded && (
+                              <div className="ml-3 border-l border-teal-200">
+                                {sub.children.map((child) => {
+                                  const childKey = `childcategory:${child.Id}`;
+                                  return (
+                                    <div
+                                      key={child.Id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveCategory(childKey);
+                                      }}
+                                      className={`px-3 py-1.5 text-[11px] cursor-pointer transition ${
+                                        activeCategory === childKey
+                                          ? "text-teal-700 font-semibold"
+                                          : "text-gray-500 hover:text-teal-700"
+                                      }`}
+                                    >
+                                      {child.name}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
             })}
           </div>
 

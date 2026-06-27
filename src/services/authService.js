@@ -1,7 +1,6 @@
 import { apiRequest, clearTokens, getAccessToken } from "../utils/apiClient";
 
-const BASE =
-  import.meta.env.VITE_API_URL || "https://api.digitalever.com.bd/api/v1";
+const BASE = import.meta.env.VITE_API_URL || "/api/v1";
 
 async function rawPost(path, body) {
   const res = await fetch(`${BASE}${path}`, {

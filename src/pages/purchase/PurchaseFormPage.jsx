@@ -3,10 +3,9 @@ import { Search, Trash2, Video } from "lucide-react";
 import { useSupplierAllList } from "../../hooks/useSuppliers";
 import { purchaseService } from "../../services/purchaseService";
 import { productService } from "../../services/productService";
+import { backendBaseUrl } from "../../utils/assetUrl";
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
-  "https://api.digitalever.com.bd";
+const BASE_URL = backendBaseUrl();
 
 function nowDateTime() {
   const d = new Date();

@@ -1,9 +1,10 @@
 import { io } from "socket.io-client";
 import { apiRequest, buildQuery, getAccessToken } from "../utils/apiClient";
 
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://api.digitalever.com.bd/api/v1";
-const SOCKET_BASE = API_BASE.replace(/\/api\/v1\/?$/, "");
+const API_BASE = import.meta.env.VITE_API_URL || "/api/v1";
+const SOCKET_BASE = /^https?:\/\//i.test(API_BASE)
+  ? API_BASE.replace(/\/api\/v1\/?$/, "")
+  : window.location.origin;
 
 export const notificationService = {
   getAll: (params = {}) => apiRequest(`/notifications${buildQuery(params)}`),

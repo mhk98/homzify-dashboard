@@ -37,7 +37,7 @@ export function assetSrc(value) {
     value.startsWith("/")
   )
     return value;
-  return `https://api.digitalever.com.bd/images/${value}`;
+  return `/images/${value}`;
 }
 
 export function getLogo(settings) {

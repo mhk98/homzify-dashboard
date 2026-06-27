@@ -1,13 +1,12 @@
-const BASE =
-  import.meta.env.VITE_API_URL || "https://api.digitalever.com.bd/api/v1";
+const BASE = import.meta.env.VITE_API_URL || "/api/v1";
 
 const STORAGE_KEYS = {
-  access: "holydeen_access",
-  refresh: "holydeen_refresh",
+  access: "homzify_access",
+  refresh: "homzify_refresh",
 };
 
 export const USER_STORAGE_KEYS = {
-  current: "holydeen_user",
+  current: "homzify_user",
 };
 
 export function getAccessToken() {
@@ -123,23 +122,31 @@ export async function apiRequest(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  const res = await fetchWithRetry(`${BASE}${path}`, {
-    credentials: "include",
-    cache: "no-store",
-    ...options,
-    headers,
-  }, retryNetworkErrors);
+  const res = await fetchWithRetry(
+    `${BASE}${path}`,
+    {
+      credentials: "include",
+      cache: "no-store",
+      ...options,
+      headers,
+    },
+    retryNetworkErrors,
+  );
 
   if (res.status === 401) {
     // Token might have just expired between the check and the request
     try {
       const freshToken = await doRefresh();
-      const retryRes = await fetchWithRetry(`${BASE}${path}`, {
-        credentials: "include",
-        cache: "no-store",
-        ...options,
-        headers: { ...headers, Authorization: `Bearer ${freshToken}` },
-      }, retryNetworkErrors);
+      const retryRes = await fetchWithRetry(
+        `${BASE}${path}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+          ...options,
+          headers: { ...headers, Authorization: `Bearer ${freshToken}` },
+        },
+        retryNetworkErrors,
+      );
       if (!retryRes.ok) {
         const err = await retryRes.json();
         throw new Error(err.message || "Request failed");

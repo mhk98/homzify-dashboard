@@ -1,10 +1,27 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    include: ['react-is'],
+  server: {
+    proxy: {
+      "/api/v1": {
+        target: "https://api.homzify.net",
+        changeOrigin: true,
+      },
+      "/images": {
+        target: "https://api.homzify.net",
+        changeOrigin: true,
+      },
+      "/socket.io": {
+        target: "https://api.homzify.net",
+        ws: true,
+        changeOrigin: true,
+      },
+    },
   },
-})
+  optimizeDeps: {
+    include: ["react-is"],
+  },
+});

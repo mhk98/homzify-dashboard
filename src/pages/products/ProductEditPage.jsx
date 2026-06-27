@@ -10,10 +10,9 @@ import {
 import { supplierService } from "../../services/supplierService";
 import RichEditor from "../../components/RichEditor";
 import { apiRequest } from "../../utils/apiClient";
+import { backendBaseUrl } from "../../utils/assetUrl";
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
-  "https://api.digitalever.com.bd";
+const BASE_URL = backendBaseUrl();
 
 function Toggle({ checked, onChange }) {
   return (

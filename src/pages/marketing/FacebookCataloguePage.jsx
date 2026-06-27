@@ -2,8 +2,7 @@ import { useState } from "react";
 import { CheckCircle, Copy, PlayCircle, RefreshCw } from "lucide-react";
 import { facebookCatalogueService } from "../../services/marketingService";
 
-const BASE =
-  import.meta.env.VITE_API_URL || "https://api.digitalever.com.bd/api/v1";
+const BASE = import.meta.env.VITE_API_URL || "/api/v1";
 const FEED_URL = `${BASE}/facebook-catalogue/feed.xml`;
 
 export default function FacebookCataloguePage() {

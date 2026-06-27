@@ -97,7 +97,7 @@ export default function InvoicePage({ order, onBack }) {
               </div>
               <div className="text-sm text-gray-700 leading-relaxed space-y-0.5">
                 <div className="font-semibold">Deen Commerce</div>
-                <div>holydeen@gmail.com</div>
+                <div>homzify@gmail.com</div>
                 <div>01518301098</div>
                 <div className="text-xs text-gray-500 leading-snug">
                   500/3 - C (খিলগাঁও মডেল কলেজের পিছনের রাস্তা), খিলগাঁও ঢাকা

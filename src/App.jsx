@@ -117,7 +117,7 @@ function getDirectLandingPageId() {
   return match?.[1] || "";
 }
 
-const DASHBOARD_NAV_STORAGE_KEY = "holydeen-dashboard:navigation";
+const DASHBOARD_NAV_STORAGE_KEY = "homzify-dashboard:navigation";
 
 const DEFAULT_NAVIGATION = {
   activePage: "dashboard",
@@ -283,8 +283,10 @@ function getNavigationStateFromUrl(url) {
   if (!url || typeof window === "undefined") return null;
   try {
     const value = String(url);
-    if (value.startsWith("/#")) return getNavigationStateFromHash(value.slice(2));
-    if (value.startsWith("#")) return getNavigationStateFromHash(value.slice(1));
+    if (value.startsWith("/#"))
+      return getNavigationStateFromHash(value.slice(2));
+    if (value.startsWith("#"))
+      return getNavigationStateFromHash(value.slice(1));
     const parsed = new URL(value, window.location.origin);
     if (parsed.origin !== window.location.origin) return null;
     return getNavigationStateFromHash(parsed.hash.replace(/^#/, ""));
@@ -1026,7 +1028,9 @@ function App() {
       return;
     }
     if (target === "tutorial") {
-      window.alert("Tutorial link সেট করা হয়নি। VITE_TUTORIAL_URL দিলে এখানে open হবে।");
+      window.alert(
+        "Tutorial link সেট করা হয়নি। VITE_TUTORIAL_URL দিলে এখানে open হবে।",
+      );
     }
   }
 

@@ -20,10 +20,9 @@ import {
   normalizeOrderStatuses,
   toOrderStatusKey,
 } from "../utils/orderStatuses";
+import { backendBaseUrl } from "../utils/assetUrl";
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
-  "https://api.digitalever.com.bd";
+const BASE_URL = backendBaseUrl();
 
 const PAGE_SIZE = 20;
 

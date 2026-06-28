@@ -57,6 +57,7 @@ import LandingPageHeaderPage from "./pages/landing/LandingPageHeaderPage";
 import LandingPageFooterPage from "./pages/landing/LandingPageFooterPage";
 import { landingPageService } from "./services/landingPageService";
 import WebsiteGeneralSettingPage from "./pages/website/WebsiteGeneralSettingPage";
+import WebsiteFooterPage from "./pages/website/WebsiteFooterPage";
 import WebsiteSocialMediaPage from "./pages/website/WebsiteSocialMediaPage";
 import WebsiteContactPage from "./pages/website/WebsiteContactPage";
 import WebsiteShippingChargePage from "./pages/website/WebsiteShippingChargePage";
@@ -1638,6 +1639,8 @@ function App() {
     if (activePage === "website") {
       if (activeWebsitePage === "general_setting")
         return <WebsiteGeneralSettingPage />;
+      if (activeWebsitePage === "website_footer")
+        return <WebsiteFooterPage />;
       if (activeWebsitePage === "social_media")
         return <WebsiteSocialMediaPage />;
       if (activeWebsitePage === "contact") return <WebsiteContactPage />;

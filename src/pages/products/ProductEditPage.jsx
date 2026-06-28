@@ -5,6 +5,8 @@ import {
   subcategoryService,
   childcategoryService,
   brandService,
+  colorService,
+  attributeService,
   productService,
 } from "../../services/productService";
 import { supplierService } from "../../services/supplierService";
@@ -145,6 +147,8 @@ export default function ProductEditPage({ product, onNavigate }) {
         discountPercent: calcDiscountPercent(v.oldPrice, v.newPrice),
         newPrice: v.newPrice || "",
         stock: v.stock || 0,
+        colorId: v.colorId || "",
+        attribute: v.attribute || "",
       }))
     : [emptyVariation];
   const [variations, setVariations] = useState(initVariations);
@@ -154,6 +158,8 @@ export default function ProductEditPage({ product, onNavigate }) {
   const [subcategories, setSubcategories] = useState([]);
   const [childcats, setChildcats] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [colors, setColors] = useState([]);
+  const [attributes, setAttributes] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
 
   const [selectedCat, setSelectedCat] = useState(
@@ -168,7 +174,17 @@ export default function ProductEditPage({ product, onNavigate }) {
   const [selectedBrand, setSelectedBrand] = useState(
     product?.brandId ? String(product.brandId) : "",
   );
+  const [selectedColor, setSelectedColor] = useState(
+    initVariations.find((variation) => variation.colorId)?.colorId
+      ? String(initVariations.find((variation) => variation.colorId).colorId)
+      : "",
+  );
+  const [selectedAttribute, setSelectedAttribute] = useState(
+    initVariations.find((variation) => variation.attribute)?.attribute || "",
+  );
   const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10));
 
   const [loadingSub, setLoadingSub] = useState(false);
   const [loadingChild, setLoadingChild] = useState(false);
@@ -185,6 +201,14 @@ export default function ProductEditPage({ product, onNavigate }) {
     brandService
       .getAllList()
       .then((r) => setBrands(r.data || []))
+      .catch(() => {});
+    colorService
+      .getAllList()
+      .then((r) => setColors(r.data || []))
+      .catch(() => {});
+    attributeService
+      .getAllList()
+      .then((r) => setAttributes(r.data || []))
       .catch(() => {});
     supplierService
       .getAllList()
@@ -311,10 +335,22 @@ export default function ProductEditPage({ product, onNavigate }) {
       fd.append("status", status ? "Active" : "Inactive");
       fd.append("bestDeals", bestDeals ? "true" : "false");
       fd.append("freeShipping", freeShipping ? "true" : "false");
+      fd.append("purchaseEnabled", purchaseEnabled ? "true" : "false");
+      if (purchaseEnabled && selectedSupplier) fd.append("supplierId", selectedSupplier);
+      if (purchaseEnabled && payAmount) fd.append("payAmount", payAmount);
+      if (purchaseEnabled && purchaseDate) fd.append("purchaseDate", purchaseDate);
       fd.append("keptImages", JSON.stringify(keptImages));
       fd.append(
         "variations",
-        JSON.stringify(variations.filter((v) => v.newPrice || v.purchasePrice)),
+        JSON.stringify(
+          variations
+            .filter((v) => v.newPrice || v.purchasePrice)
+            .map((v) => ({
+              ...v,
+              colorId: selectedColor || v.colorId || null,
+              attribute: selectedAttribute || v.attribute || null,
+            })),
+        ),
       );
       newImageFiles.forEach((f) => fd.append("gallery_images", f));
 
@@ -376,6 +412,26 @@ export default function ProductEditPage({ product, onNavigate }) {
                 onChange={(e) => setSlug(e.target.value)}
                 className={inputCls}
               />
+            </FormField>
+            <FormField label="Attribute">
+              <div className="relative">
+                <select
+                  className={selectCls}
+                  value={selectedAttribute}
+                  onChange={(e) => setSelectedAttribute(e.target.value)}
+                >
+                  <option value="">Select Attribute</option>
+                  {attributes.map((attribute) => (
+                    <option key={attribute.Id} value={attribute.name}>
+                      {attribute.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={13}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+              </div>
             </FormField>
           </div>
 
@@ -600,6 +656,28 @@ export default function ProductEditPage({ product, onNavigate }) {
       {/* Price & Variation */}
       <SectionCard title="Price & Variation">
         <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-4 items-end">
+            <FormField label="Color">
+              <div className="relative">
+                <select
+                  className={selectCls}
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                >
+                  <option value="">Select Color</option>
+                  {colors.map((color) => (
+                    <option key={color.Id} value={color.Id}>
+                      {color.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={13}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+              </div>
+            </FormField>
+          </div>
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <table className="w-full text-xs">
               <thead>
@@ -738,10 +816,10 @@ export default function ProductEditPage({ product, onNavigate }) {
             </div>
           </FormField>
           <FormField label="Pay Amount">
-            <input type="text" placeholder="Cash" className={inputCls} />
+            <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="Cash" className={inputCls} />
           </FormField>
           <FormField label="Date">
-            <input type="text" defaultValue={now} className={inputCls} />
+            <input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={inputCls} />
           </FormField>
         </div>
       </SectionCard>

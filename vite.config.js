@@ -7,15 +7,15 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/v1": {
-        target: "https://api.homzify.net",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/images": {
-        target: "https://api.homzify.net",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/socket.io": {
-        target: "https://api.homzify.net",
+        target: "http://127.0.0.1:5000",
         ws: true,
         changeOrigin: true,
       },

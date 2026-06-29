@@ -212,7 +212,7 @@ export default function CustomerLoginAsPage({ customer, onBack }) {
             >
               <span style={{ fontFamily: "serif", fontSize: 20 }}>وجيه</span>
             </div>
-            <span className="text-white font-bold">Deen Commerce</span>
+            <span className="text-white font-bold">Homzify</span>
           </div>
 
           {/* Useful Links */}
@@ -276,7 +276,7 @@ export default function CustomerLoginAsPage({ customer, onBack }) {
         </div>
         <div className="border-t border-gray-800 text-center py-2">
           <p className="text-xs text-gray-500">
-            © Deen Commerce <span className="text-blue-400">DeenSoft</span>
+            © Homzify <span className="text-blue-400">DeenSoft</span>
           </p>
         </div>
       </footer>

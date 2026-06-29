@@ -9,8 +9,20 @@ async function rawPost(path, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || "Request failed");
+  const text = await res.text();
+  let json = {};
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = { message: text };
+    }
+  }
+  if (!res.ok) {
+    throw new Error(
+      json.message || res.statusText || "Request failed. Please try again.",
+    );
+  }
   return json;
 }
 

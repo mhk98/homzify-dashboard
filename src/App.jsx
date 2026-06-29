@@ -508,7 +508,7 @@ function App() {
       id: 2,
       title: "এ আঘা খাবার ৪টি কারণ",
       imageName: "",
-      imageText: "Deen Commerce",
+      imageText: "Homzify",
       imageColor: "linear-gradient(135deg, #0f172a, #4b6b8a)",
       description: "",
       status: false,
@@ -1639,8 +1639,7 @@ function App() {
     if (activePage === "website") {
       if (activeWebsitePage === "general_setting")
         return <WebsiteGeneralSettingPage />;
-      if (activeWebsitePage === "website_footer")
-        return <WebsiteFooterPage />;
+      if (activeWebsitePage === "website_footer") return <WebsiteFooterPage />;
       if (activeWebsitePage === "social_media")
         return <WebsiteSocialMediaPage />;
       if (activeWebsitePage === "contact") return <WebsiteContactPage />;

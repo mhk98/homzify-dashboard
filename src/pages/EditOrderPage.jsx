@@ -764,8 +764,7 @@ export default function EditOrderPage({ order, onNavigate, onCountsRefresh }) {
 
       {/* Footer */}
       <div className="text-center text-xs text-gray-400 py-1.5 border-t border-gray-100 bg-white flex-shrink-0">
-        © Deen Commerce{" "}
-        <span className="text-blue-500 cursor-pointer">DeenSoft</span>
+        © Homzify <span className="text-blue-500 cursor-pointer">DeenSoft</span>
       </div>
     </div>
   );

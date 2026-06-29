@@ -1018,7 +1018,7 @@ function GiveawayCampaignTemplate({ data }) {
       >
         <TopStrip phone={phone} onTrack={onTrackOrder} settings={footerSettings?.header} />
 
-        <main className="mx-auto max-w-[760px] px-4 pb-12">
+        <main className="mx-auto max-w-[1340px] px-4 pb-12">
           {footerSettings?.header?.status !== false && (
             <header className="py-4 text-center">
               {footerSettings?.header?.logoUrl ? (
@@ -1054,7 +1054,7 @@ function GiveawayCampaignTemplate({ data }) {
             <img
               src={bannerImage}
               alt={productName}
-              className="h-[clamp(240px,44vw,420px)] w-full object-cover"
+              className="h-[clamp(240px,42vw,560px)] w-full object-cover"
             />
           </section>
 
@@ -1065,7 +1065,7 @@ function GiveawayCampaignTemplate({ data }) {
               <img
                 src={prizeImageSource}
                 alt="Campaign prize"
-                className="h-[clamp(220px,42vw,390px)] w-full object-cover"
+                className="h-[clamp(240px,42vw,560px)] w-full object-cover"
               />
             ) : (
               <div className="grid min-h-[280px] items-center gap-4 bg-gradient-to-br from-sky-300 via-white to-slate-200 p-6 md:grid-cols-[0.85fr_1fr]">
@@ -1089,7 +1089,7 @@ function GiveawayCampaignTemplate({ data }) {
             <h2 className="text-center text-2xl font-black text-slate-800">
               আগের ক্যাম্পেইনের <span className="text-red-600">১১ জন বাইক বিজয়ী</span>
             </h2>
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
               {WINNERS.map((winner, index) => (
                 <WinnerCard
                   key={winner}
@@ -1207,7 +1207,7 @@ function TemplateDesign2({ data }) {
         onTrack={onTrackOrder}
         settings={data.footerSettings?.header}
       />
-      <main className="mx-auto max-w-6xl px-4 pb-14">
+      <main className="mx-auto max-w-[1340px] px-4 pb-14">
         <section className="grid min-h-[520px] items-center gap-8 py-8 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="overflow-hidden rounded border border-emerald-100 bg-white shadow-sm">
             <img
@@ -1293,7 +1293,7 @@ function TemplateDesign3({ data }) {
         settings={data.footerSettings?.header}
       />
 
-      <main className="mx-auto max-w-6xl px-4 pb-14">
+      <main className="mx-auto max-w-[1340px] px-4 pb-14">
         <section className="grid gap-6 py-8 lg:grid-cols-[1fr_420px]">
           <div className="overflow-hidden rounded border border-white/10 bg-white text-slate-950">
             <div className="relative min-h-[430px]">
@@ -1453,7 +1453,7 @@ function WinnerGrid({ reviewImages, title, dark }) {
         {title}
       </h2>
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {WINNERS.slice(0, 8).map((winner, index) => (
+        {WINNERS.map((winner, index) => (
           <WinnerCard
             key={winner}
             name={winner}
@@ -1851,7 +1851,7 @@ function WinnerCard({ name, index, image }) {
           <img
             src={image}
             alt={name}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-contain"
           />
         ) : (
           <>

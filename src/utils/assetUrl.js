@@ -11,7 +11,9 @@ export function assetUrl(value) {
   const src = String(value).trim();
   if (!src) return "";
   if (/^(https?:)?\/\//i.test(src) || src.startsWith("data:")) return src;
-  if (src.startsWith("/")) return src;
+  if (src.startsWith("/")) {
+    return backendBaseUrl() ? `${backendBaseUrl()}${src}` : src;
+  }
   return `${backendBaseUrl()}/${src.replace(/^\/+/, "")}`;
 }
 
@@ -20,7 +22,9 @@ export function imageUrl(value) {
   const src = String(value).trim();
   if (!src) return "";
   if (/^(https?:)?\/\//i.test(src) || src.startsWith("data:")) return src;
-  if (src.startsWith("/")) return src;
+  if (src.startsWith("/")) {
+    return backendBaseUrl() ? `${backendBaseUrl()}${src}` : src;
+  }
   const clean = src.replace(/^\/+/, "");
   return clean.startsWith("images/")
     ? `${backendBaseUrl()}/${clean}`

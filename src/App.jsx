@@ -103,11 +103,11 @@ import { siteSettingService } from "./services/websiteService";
 import {
   applyDocumentFavicon,
   applyDocumentTitle,
-  assetSrc,
   getFavicon,
   getSiteName,
   normalizeSettingData,
 } from "./utils/siteBranding";
+import { imageUrl } from "./utils/assetUrl";
 
 function getDirectLandingPageId() {
   if (typeof window === "undefined") return "";
@@ -347,15 +347,23 @@ function normalizeBanner(item) {
     item.imageUrl ??
     item.bannerImageUrl ??
     "";
+  const rawImageSrc =
+    item.imageUrl ??
+    item.bannerImageUrl ??
+    item.image ??
+    item.file ??
+    item.imageName ??
+    "";
   const imageName = String(rawImageName || "");
+  const imageSrc = String(rawImageSrc || "");
   return {
     id: item.Id ?? item.id,
     link: item.linkUrl ?? item.link ?? "",
     categoryId: item.categoryId ?? item.category?.Id ?? "",
     category,
     imageName,
-    imageSrc: assetSrc(imageName),
-    isDynamic: Boolean(imageName),
+    imageSrc: imageUrl(imageSrc),
+    isDynamic: Boolean(imageSrc),
     imageText: item.alt ?? item.imageText ?? category,
     imageColor: item.imageColor ?? "linear-gradient(135deg, #94a3b8, #475569)",
     status: item.status === true || item.status === "Active",

@@ -1,6 +1,5 @@
-import { backendBaseUrl } from "../utils/assetUrl";
+import { imageUrl } from "../utils/assetUrl";
 
-const BASE_URL = backendBaseUrl();
 const fmt = (n) => Number(n || 0).toLocaleString("en-BD");
 
 export default function TopProducts({ topProducts = [], loading, onViewAll }) {
@@ -73,7 +72,7 @@ export default function TopProducts({ topProducts = [], loading, onViewAll }) {
                 <td className="px-4 py-3">
                   {p.productImage ? (
                     <img
-                      src={`${BASE_URL}/${p.productImage}`}
+                      src={imageUrl(p.productImage)}
                       alt={p.productName}
                       className="w-10 h-10 object-cover rounded border border-gray-200"
                       onError={(e) => {

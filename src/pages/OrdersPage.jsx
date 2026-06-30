@@ -20,9 +20,7 @@ import {
   normalizeOrderStatuses,
   toOrderStatusKey,
 } from "../utils/orderStatuses";
-import { backendBaseUrl } from "../utils/assetUrl";
-
-const BASE_URL = backendBaseUrl();
+import { imageUrl } from "../utils/assetUrl";
 
 const PAGE_SIZE = 20;
 
@@ -459,7 +457,7 @@ function OrderRow({
           <div className="w-9 h-9 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-gray-300 text-[9px] flex-shrink-0 overflow-hidden">
             {order.productImage ? (
               <img
-                src={`${BASE_URL}/images/${order.productImage}`}
+                src={imageUrl(order.productImage)}
                 alt=""
                 className="w-full h-full object-cover"
                 onError={(e) => {

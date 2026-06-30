@@ -15,7 +15,12 @@ async function rawPost(path, body) {
     try {
       json = JSON.parse(text);
     } catch {
-      json = { message: text };
+      const looksLikeHtml = /<!doctype html|<html[\s>]/i.test(text);
+      json = {
+        message: looksLikeHtml
+          ? "API endpoint returned an HTML page. Please check the production API URL."
+          : text,
+      };
     }
   }
   if (!res.ok) {

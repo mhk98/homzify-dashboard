@@ -22,9 +22,7 @@ import {
 import { orderService } from "../services/orderService";
 import { orderStatusService } from "../services/websiteService";
 import { normalizeOrderStatuses } from "../utils/orderStatuses";
-import { backendBaseUrl } from "../utils/assetUrl";
-
-const ASSET_BASE_URL = backendBaseUrl();
+import { imageUrl } from "../utils/assetUrl";
 
 const deliveryAreas = [
   { label: "ঢাকার ভিতরে ৮০ টাকা", fee: 80 },
@@ -67,10 +65,7 @@ function imageValue(image) {
 
 function productImageSrc(image) {
   const src = imageValue(image).trim();
-  if (!src) return "";
-  if (/^(https?:)?\/\//i.test(src) || src.startsWith("data:")) return src;
-  if (src.startsWith("/")) return `${ASSET_BASE_URL}${src}`;
-  return `${ASSET_BASE_URL}/images/${src}`;
+  return imageUrl(src);
 }
 
 function toId(value) {

@@ -3,9 +3,7 @@ import { Search, Trash2, Video } from "lucide-react";
 import { useSupplierAllList } from "../../hooks/useSuppliers";
 import { purchaseService } from "../../services/purchaseService";
 import { productService } from "../../services/productService";
-import { backendBaseUrl } from "../../utils/assetUrl";
-
-const BASE_URL = backendBaseUrl();
+import { imageUrl } from "../../utils/assetUrl";
 
 function nowDateTime() {
   const d = new Date();
@@ -346,7 +344,7 @@ export default function PurchaseFormPage({
                     <div className="flex h-12 w-14 items-center justify-center overflow-hidden border border-gray-200 bg-gray-50 text-[10px] font-semibold text-gray-400">
                       {item.image ? (
                         <img
-                          src={`${BASE_URL}/images/${item.image}`}
+                          src={imageUrl(item.image)}
                           alt={item.name}
                           className="h-full w-full object-cover"
                         />

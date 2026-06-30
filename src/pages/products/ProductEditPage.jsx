@@ -12,9 +12,7 @@ import {
 import { supplierService } from "../../services/supplierService";
 import RichEditor from "../../components/RichEditor";
 import { apiRequest } from "../../utils/apiClient";
-import { backendBaseUrl } from "../../utils/assetUrl";
-
-const BASE_URL = backendBaseUrl();
+import { imageUrl } from "../../utils/assetUrl";
 
 function Toggle({ checked, onChange }) {
   return (
@@ -607,7 +605,7 @@ export default function ProductEditPage({ product, onNavigate }) {
               <div key={i} className="relative group w-20">
                 <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
                   <img
-                    src={`${BASE_URL}/images/${filename}`}
+                    src={imageUrl(filename)}
                     alt=""
                     className="w-full h-full object-cover"
                     onError={(e) => {

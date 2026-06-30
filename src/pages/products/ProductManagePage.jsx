@@ -12,9 +12,7 @@ import {
 } from "lucide-react";
 import { useProducts } from "../../hooks/useProducts";
 import { productService } from "../../services/productService";
-import { backendBaseUrl } from "../../utils/assetUrl";
-
-const BASE_URL = backendBaseUrl();
+import { imageUrl } from "../../utils/assetUrl";
 
 function parseImages(images) {
   if (Array.isArray(images)) return images;
@@ -26,11 +24,6 @@ function parseImages(images) {
     }
   }
   return [];
-}
-
-function imageSrc(file) {
-  if (!file) return "";
-  return /^https?:\/\//i.test(file) ? file : `${BASE_URL}/images/${file}`;
 }
 
 const PAGE_SIZES = [10, 20, 30, 50];
@@ -290,7 +283,7 @@ function ProductRow({ product, checked, onToggle, onDelete, onEdit }) {
             const imgs = parseImages(product.images);
             return imgs[0] ? (
               <img
-                src={imageSrc(imgs[0])}
+                src={imageUrl(imgs[0])}
                 alt={product.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {

@@ -19,9 +19,7 @@ import {
   useSubcategories,
 } from "../hooks/useProducts";
 import { orderService } from "../services/orderService";
-import { backendBaseUrl } from "../utils/assetUrl";
-
-const ASSET_BASE_URL = backendBaseUrl();
+import { imageUrl } from "../utils/assetUrl";
 
 // ── Delivery areas ─────────────────────────────────────────
 const deliveryAreas = [
@@ -66,10 +64,7 @@ function imageValue(image) {
 
 function productImageSrc(image) {
   const src = imageValue(image).trim();
-  if (!src) return "";
-  if (/^(https?:)?\/\//i.test(src) || src.startsWith("data:")) return src;
-  if (src.startsWith("/")) return `${ASSET_BASE_URL}${src}`;
-  return `${ASSET_BASE_URL}/images/${src}`;
+  return imageUrl(src);
 }
 
 function toId(value) {

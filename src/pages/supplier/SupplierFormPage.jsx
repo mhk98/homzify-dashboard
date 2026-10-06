@@ -78,7 +78,7 @@ export default function SupplierFormPage({ mode = 'create', supplier, onSave, on
           </div>
 
           {/* Phone + Address */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Phone</label>
               <input

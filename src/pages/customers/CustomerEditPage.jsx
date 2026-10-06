@@ -32,7 +32,7 @@ export default function CustomerEditPage({ customer, onSave, onNavigate }) {
 
   return (
     <div className="flex-1 overflow-y-auto p-4">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <h1 className="text-lg font-bold text-gray-800">Customer Edit</h1>
         <div className="flex gap-2">
           <button type="button"
@@ -46,12 +46,12 @@ export default function CustomerEditPage({ customer, onSave, onNavigate }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6">
         {error && (
           <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg">{error}</div>
         )}
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Customer Name <span className="text-red-500">*</span>
@@ -68,7 +68,7 @@ export default function CustomerEditPage({ customer, onSave, onNavigate }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Area</label>
               <input value={form.customerArea} onChange={(e) => set('customerArea', e.target.value)}

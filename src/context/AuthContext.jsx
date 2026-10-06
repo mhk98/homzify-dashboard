@@ -43,6 +43,23 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const applyAuthPayload = useCallback((data = {}) => {
+    const nextUserData = data.user;
+    const menuPermissions = data.menuPermissions;
+
+    if (!nextUserData && !Array.isArray(menuPermissions)) return;
+
+    setUser((currentUser) => {
+      const baseUser = nextUserData || currentUser || loadStoredUser();
+      if (!baseUser) return currentUser;
+      const fullUser = Array.isArray(menuPermissions)
+        ? { ...baseUser, menuPermissions }
+        : { ...baseUser };
+      saveUser(fullUser);
+      return fullUser;
+    });
+  }, []);
+
   function clearTimers() {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     if (keepAliveTimerRef.current) clearInterval(keepAliveTimerRef.current);
@@ -64,13 +81,14 @@ export function AuthProvider({ children }) {
         const newRefresh = res.data?.refreshToken;
         if (newAccess) {
           setTokens(newAccess, newRefresh);
+          applyAuthPayload(res.data);
           scheduleRefresh(newAccess);
         }
       } catch {
         logout();
       }
     }, msLeft);
-  }, [logout]);
+  }, [logout, applyAuthPayload]);
 
   // On mount: validate stored tokens
   useEffect(() => {
@@ -84,7 +102,24 @@ export function AuthProvider({ children }) {
       }
 
       if (access && !isTokenExpired(access)) {
-        scheduleRefresh(access);
+        try {
+          if (refresh) {
+            const res = await authService.refreshToken(refresh);
+            const newAccess = res.data?.accessToken;
+            const newRefresh = res.data?.refreshToken;
+            if (newAccess) {
+              setTokens(newAccess, newRefresh);
+              applyAuthPayload(res.data);
+              scheduleRefresh(newAccess);
+            } else {
+              scheduleRefresh(access);
+            }
+          } else {
+            scheduleRefresh(access);
+          }
+        } catch {
+          scheduleRefresh(access);
+        }
         setIsLoading(false);
         return;
       }
@@ -97,6 +132,7 @@ export function AuthProvider({ children }) {
           const newRefresh = res.data?.refreshToken;
           if (newAccess) {
             setTokens(newAccess, newRefresh);
+            applyAuthPayload(res.data);
             scheduleRefresh(newAccess);
             setIsLoading(false);
             return;
@@ -113,14 +149,19 @@ export function AuthProvider({ children }) {
 
     init();
 
-    // Listen for forced logout events from apiClient (401 that can't be refreshed)
+    // Listen for auth events from apiClient.
     const onForceLogout = () => { clearTokens(); saveUser(null); setUser(null); };
+    const onUserUpdated = (event) => {
+      if (event.detail) setUser(event.detail);
+    };
     window.addEventListener("auth:logout", onForceLogout);
+    window.addEventListener("auth:user-updated", onUserUpdated);
     return () => {
       clearTimers();
       window.removeEventListener("auth:logout", onForceLogout);
+      window.removeEventListener("auth:user-updated", onUserUpdated);
     };
-  }, [scheduleRefresh, logout]);
+  }, [scheduleRefresh, logout, applyAuthPayload]);
 
   useEffect(() => {
     if (!user) return undefined;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Menu,
   Maximize2,
@@ -23,10 +23,17 @@ const SITE_URL = import.meta.env.VITE_SITE_URL || "/";
 const TUTORIAL_URL = import.meta.env.VITE_TUTORIAL_URL || "";
 
 function notificationId(notification) {
-  return notification?.Id ?? notification?.id ?? notification?._id;
+  return (
+    notification?.Id ??
+    notification?.ID ??
+    notification?.id ??
+    notification?._id ??
+    notification?.notificationId
+  );
 }
 
 function sameNotification(left, right) {
+  if (left === right) return true;
   const leftId = notificationId(left);
   const rightId =
     typeof right === "object" ? notificationId(right) : (right ?? null);
@@ -39,10 +46,20 @@ function toOptionalCount(value) {
   return Number.isFinite(count) ? count : undefined;
 }
 
+function isNotificationRead(notification) {
+  const value = notification?.isRead;
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
+function unreadCountFromResponse(response) {
+  return toOptionalCount(response?.data?.unreadCount ?? response?.data?.count);
+}
+
 export default function TopNav({
   siteSettings,
   onQuickNavigate,
   onNotificationNavigate,
+  onMenuClick,
 }) {
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -51,6 +68,7 @@ export default function TopNav({
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const readRequestsRef = useRef(new Map());
   const [isFullscreen, setIsFullscreen] = useState(
     Boolean(document.fullscreenElement),
   );
@@ -123,7 +141,7 @@ export default function TopNav({
             : item,
         ),
       );
-      setUnreadCount(Number(count || 0));
+      setUnreadCount((previous) => toOptionalCount(count) ?? previous);
     };
     const handleReadAll = () => {
       setNotifications((previous) =>
@@ -183,37 +201,69 @@ export default function TopNav({
   }
 
   async function openNotification(notification) {
-    const id = notificationId(notification);
-    const wasUnread = !notification.isRead;
     try {
-      const response = id
-        ? await notificationService.markAsRead(id)
-        : { data: {} };
-      const countResponse = await notificationService.getUnreadCount();
-      const serverUnreadCount = toOptionalCount(
-        countResponse.data?.count ?? response.data?.unreadCount,
-      );
-      setNotifications((previous) => {
-        return previous.map((item) =>
-          sameNotification(item, notification)
-            ? { ...item, isRead: true, readAt: new Date().toISOString() }
-            : item,
-        );
-      });
-      setUnreadCount((previous) => {
-        if (!wasUnread) return serverUnreadCount ?? previous;
-        const optimistic = Math.max(0, previous - 1);
-        if (serverUnreadCount === undefined) return optimistic;
-        return serverUnreadCount < previous ? serverUnreadCount : optimistic;
-      });
+      await markNotificationRead(notification);
     } catch {
-      /* keep the item visible if the request fails */
+      await refreshUnreadCountFromServer();
+      return;
     }
     setNotificationOpen(false);
     if (notification.url) {
       const handled = onNotificationNavigate?.(notification.url);
       if (!handled) window.location.assign(notification.url);
     }
+  }
+
+  async function refreshUnreadCountFromServer() {
+    const response = await notificationService.getUnreadCount();
+    const count = toOptionalCount(response.data?.count);
+    if (count !== undefined) setUnreadCount(count);
+    return count;
+  }
+
+  function markNotificationRead(notification) {
+    const id = notificationId(notification);
+    const requestKey = id ? String(id) : "";
+    const existingRequest = requestKey
+      ? readRequestsRef.current.get(requestKey)
+      : null;
+    if (existingRequest) return existingRequest;
+
+    const wasUnread = !isNotificationRead(notification);
+    setNotifications((previous) =>
+      previous.map((item) =>
+        sameNotification(item, notification)
+          ? {
+              ...item,
+              isRead: true,
+              readAt: item.readAt || new Date().toISOString(),
+            }
+          : item,
+      ),
+    );
+    if (wasUnread) {
+      setUnreadCount((previous) => Math.max(0, previous - 1));
+    }
+
+    if (!id) return Promise.resolve();
+
+    const request = notificationService
+      .markAsRead(id)
+      .then((response) => {
+        const serverUnreadCount = unreadCountFromResponse(response);
+        if (serverUnreadCount !== undefined) setUnreadCount(serverUnreadCount);
+        return response;
+      })
+      .catch(async (error) => {
+        await refreshUnreadCountFromServer().catch(() => undefined);
+        throw error;
+      })
+      .finally(() => {
+        readRequestsRef.current.delete(requestKey);
+      });
+
+    readRequestsRef.current.set(requestKey, request);
+    return request;
   }
 
   async function markAllRead() {
@@ -226,7 +276,7 @@ export default function TopNav({
           readAt: item.readAt || new Date().toISOString(),
         })),
       );
-      setUnreadCount(Number(response.data?.unreadCount || 0));
+      setUnreadCount(unreadCountFromResponse(response) ?? 0);
     } catch {
       /* leave current state unchanged */
     }
@@ -242,7 +292,7 @@ export default function TopNav({
       );
       if (response.data?.unreadCount !== undefined) {
         setUnreadCount(Number(response.data.unreadCount || 0));
-      } else if (target && !target.isRead) {
+      } else if (target && !isNotificationRead(target)) {
         setUnreadCount((count) => Math.max(0, count - 1));
       }
     } catch {
@@ -251,10 +301,15 @@ export default function TopNav({
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 flex items-center justify-between px-4 py-2 sticky top-0 z-10 shadow-sm">
+    <header className="bg-white border-b border-gray-200 flex flex-wrap items-center justify-between gap-2 px-3 py-2 sticky top-0 z-10 shadow-sm sm:px-4">
       {/* Left */}
-      <div className="flex items-center gap-3">
-        <button className="p-1 hover:bg-gray-100 rounded">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="p-1 hover:bg-gray-100 rounded md:hidden"
+          aria-label="Open sidebar"
+        >
           <Menu size={20} className="text-gray-600" />
         </button>
 
@@ -275,36 +330,36 @@ export default function TopNav({
           </div>
         )}
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           <NavBtn
-            color="bg-green-500"
+            color="bg-[#C39A28]"
             label="Visit Site"
             onClick={() =>
               window.open(SITE_URL, "_blank", "noopener,noreferrer")
             }
           />
           <NavBtn
-            color="bg-blue-500"
+            color="bg-[#1C2744]"
             label="Landing Page"
             onClick={() => onQuickNavigate?.("landing")}
           />
           <NavBtn
-            color="bg-orange-400"
+            color="bg-[#A87E1F]"
             label="Visitors"
             onClick={() => onQuickNavigate?.("visitors")}
           />
           <NavBtn
-            color="bg-pink-500"
+            color="bg-[#3A4B78]"
             label="POS"
             onClick={() => onQuickNavigate?.("pos")}
           />
           <NavBtn
-            color="bg-emerald-500"
+            color="bg-[#C39A28]"
             label="Expense"
             onClick={() => onQuickNavigate?.("expense")}
           />
           <NavBtn
-            color="bg-red-500"
+            color="bg-[#3A4B78]"
             label="Full Tutorial"
             onClick={() =>
               TUTORIAL_URL
@@ -316,7 +371,7 @@ export default function TopNav({
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={toggleFullscreen}
@@ -385,45 +440,76 @@ export default function TopNav({
                       </p>
                     </div>
                   ) : (
-                    notifications.map((notification) => (
-                      <div
-                        key={notificationId(notification)}
-                        className={`group flex w-full border-b border-gray-50 transition hover:bg-gray-50 ${notification.isRead ? "bg-white" : "bg-blue-50/60"}`}
-                      >
-                        <button
+                    notifications.map((notification) => {
+                      const read = isNotificationRead(notification);
+                      return (
+                        <div
+                          key={notificationId(notification)}
+                          role="button"
+                          tabIndex={0}
+                          onPointerDown={(event) => {
+                            if (event.button === 0) {
+                              void markNotificationRead(notification).catch(
+                                () => undefined,
+                              );
+                            }
+                          }}
+                          onMouseDown={(event) => {
+                            if (event.button === 0) {
+                              void markNotificationRead(notification).catch(
+                                () => undefined,
+                              );
+                            }
+                          }}
+                          onTouchStart={() => {
+                            void markNotificationRead(notification).catch(
+                              () => undefined,
+                            );
+                          }}
                           onClick={() => openNotification(notification)}
-                          className="flex min-w-0 flex-1 gap-3 px-4 py-3 text-left"
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openNotification(notification);
+                            }
+                          }}
+                          className={`group flex w-full cursor-pointer border-b border-gray-50 transition hover:bg-gray-50 ${read ? "bg-white" : "bg-blue-50/70"}`}
                         >
-                          <span
-                            className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.isRead ? "bg-gray-200" : notification.priority === "high" ? "bg-red-500" : "bg-blue-500"}`}
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-xs font-bold text-gray-800">
-                              {notification.title}
+                          <div className="flex min-w-0 flex-1 gap-3 px-4 py-3 text-left">
+                            <span
+                              className={`mt-1 h-2 w-2 shrink-0 rounded-full ${read ? "bg-gray-200" : notification.priority === "high" ? "bg-red-500" : "bg-blue-500"}`}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-xs font-bold text-gray-800">
+                                {notification.title}
+                              </span>
+                              <span className="mt-0.5 line-clamp-2 block text-[11px] leading-4 text-gray-500">
+                                {notification.message}
+                              </span>
+                              <span className="mt-1 block text-[10px] text-gray-400">
+                                {formatNotificationTime(
+                                  notification.createdAt,
+                                )}
+                              </span>
                             </span>
-                            <span className="mt-0.5 line-clamp-2 block text-[11px] leading-4 text-gray-500">
-                              {notification.message}
-                            </span>
-                            <span className="mt-1 block text-[10px] text-gray-400">
-                              {formatNotificationTime(notification.createdAt)}
-                            </span>
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Delete notification"
-                          onClick={(event) =>
-                            deleteNotification(
-                              event,
-                              notificationId(notification),
-                            )
-                          }
-                          className="mr-3 mt-3 hidden self-start text-gray-300 hover:text-red-500 group-hover:block"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    ))
+                          </div>
+                          <button
+                            type="button"
+                            aria-label="Delete notification"
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) =>
+                              deleteNotification(
+                                event,
+                                notificationId(notification),
+                              )
+                            }
+                            className="mr-3 mt-3 hidden self-start text-gray-300 hover:text-red-500 group-hover:block"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -437,7 +523,7 @@ export default function TopNav({
             onClick={() => setDropdownOpen((v) => !v)}
             className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-gray-100 transition"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1C2744] via-[#C39A28] to-[#D7B043] flex items-center justify-center shrink-0">
               {user?.image ? (
                 <img
                   src={assetUrl(user.image)}

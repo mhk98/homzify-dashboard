@@ -24,7 +24,7 @@ import { imageUrl } from "../utils/assetUrl";
 // ── Delivery areas ─────────────────────────────────────────
 const deliveryAreas = [
   { label: "ঢাকার ভিতরে ৮০ টাকা", fee: 80 },
-  { label: "ঢাকার বাইরে ১২০ টাকা", fee: 120 },
+  { label: "ঢাকার বাইরে ১৩০ টাকা", fee: 130 },
   { label: "চট্টগ্রাম ১৫০ টাকা", fee: 150 },
   { label: "সিলেট ১৫০ টাকা", fee: 150 },
   { label: "রাজশাহী ১৩০ টাকা", fee: 130 },
@@ -78,6 +78,7 @@ export default function CreateOrderPage({ onNavigate }) {
   const [isGuest, setIsGuest] = useState(false);
   const [phone, setPhone] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [address, setAddress] = useState("");
   const [areaIdx, setAreaIdx] = useState(0);
   const [discount, setDiscount] = useState("");
   const [advanced, setAdvanced] = useState("");
@@ -137,6 +138,10 @@ export default function CreateOrderPage({ onNavigate }) {
       alert("Phone number দিন");
       return;
     }
+    if (!isGuest && !address.trim()) {
+      alert("Customer এর পুরো ঠিকানা দিন");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -147,7 +152,7 @@ export default function CreateOrderPage({ onNavigate }) {
       const payload = {
         customerName: isGuest ? "Guest" : customerName.trim() || "Guest",
         customerPhone: isGuest ? "Guest" : phone.trim(),
-        customerArea: deliveryAreas[areaIdx].label,
+        customerArea: address.trim() || null,
         productName,
         productImage,
         quantity,
@@ -237,10 +242,10 @@ export default function CreateOrderPage({ onNavigate }) {
   }, [rawProducts, search, activeCategory]);
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden bg-gray-50">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-gray-50">
       {/* ── Special Top Nav ── */}
-      <div className="bg-white border-b border-gray-200 flex items-center justify-between px-4 py-2 shadow-sm flex-shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="bg-white border-b border-gray-200 flex flex-wrap items-center justify-between gap-2 px-4 py-2 shadow-sm flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => onNavigate("dashboard")}
             className="flex items-center gap-1.5 bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"
@@ -275,9 +280,9 @@ export default function CreateOrderPage({ onNavigate }) {
       </div>
 
       {/* ── Page Body ── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden xl:flex-row">
         {/* ════ LEFT PANEL ════ */}
-        <div className="w-[520px] flex-shrink-0 flex flex-col overflow-y-auto border-r border-gray-200 bg-white">
+        <div className="flex max-h-[48vh] w-full flex-shrink-0 flex-col overflow-y-auto border-b border-gray-200 bg-white xl:max-h-none xl:w-[520px] xl:border-b-0 xl:border-r">
           {/* Title */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <h1 className="text-base font-bold text-gray-800">Create Order</h1>
@@ -354,7 +359,7 @@ export default function CreateOrderPage({ onNavigate }) {
 
             {!isGuest && (
               <>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <input
                     type="text"
                     placeholder="Phone Number"
@@ -375,10 +380,17 @@ export default function CreateOrderPage({ onNavigate }) {
                     No customers found
                   </div>
                 )}
+                <textarea
+                  placeholder="Customer এর পুরো ঠিকানা"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-300 resize-none"
+                />
               </>
             )}
 
-            {/* Address / Delivery area */}
+            {/* Delivery area */}
             <div className="relative">
               <select
                 value={areaIdx}
@@ -460,9 +472,9 @@ export default function CreateOrderPage({ onNavigate }) {
         </div>
 
         {/* ════ RIGHT PANEL ════ */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:flex-row">
           {/* Category sidebar */}
-          <div className="w-40 flex-shrink-0 border-r border-gray-200 bg-white overflow-y-auto py-2">
+          <div className="max-h-44 w-full flex-shrink-0 overflow-y-auto border-b border-gray-200 bg-white py-2 sm:max-h-none sm:w-40 sm:border-b-0 sm:border-r">
             <div
               onClick={() => {
                 setActiveCategory("all");
@@ -563,7 +575,7 @@ export default function CreateOrderPage({ onNavigate }) {
           </div>
 
           {/* Products area */}
-          <div className="flex flex-col flex-1 overflow-hidden bg-gray-50">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-gray-50">
             {/* Search */}
             <div className="px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
               <div className="relative">
@@ -588,7 +600,7 @@ export default function CreateOrderPage({ onNavigate }) {
                   পণ্য লোড হচ্ছে...
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {filteredProducts.map((product, i) => (
                     <ProductCard
                       key={product.id}
@@ -599,7 +611,7 @@ export default function CreateOrderPage({ onNavigate }) {
                     />
                   ))}
                   {filteredProducts.length === 0 && (
-                    <div className="col-span-4 text-center py-12 text-gray-400 text-sm">
+                    <div className="col-span-full text-center py-12 text-gray-400 text-sm">
                       কোনো পণ্য পাওয়া যায়নি
                     </div>
                   )}
@@ -612,7 +624,8 @@ export default function CreateOrderPage({ onNavigate }) {
 
       {/* Footer */}
       <div className="text-center text-xs text-gray-400 py-1.5 border-t border-gray-100 bg-white flex-shrink-0">
-        © Homzify <span className="text-blue-500 cursor-pointer">DeenSoft</span>
+        © Holy Deen{" "}
+        <span className="text-blue-500 cursor-pointer">DigitalEver</span>
       </div>
     </div>
   );

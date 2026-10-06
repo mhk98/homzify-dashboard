@@ -76,7 +76,7 @@ export default function CustomerListPage({ onViewCustomer, onEditCustomer }) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 {['SL', 'Order ID', 'Customer Name', 'Phone', 'Area', 'Status', 'Action'].map((h) => (

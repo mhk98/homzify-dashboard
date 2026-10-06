@@ -7,7 +7,7 @@ export default function TopProducts({ topProducts = [], loading, onViewAll }) {
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <div
         className="flex items-center justify-between px-4 py-3"
-        style={{ background: "linear-gradient(90deg, #1d4ed8, #3b82f6)" }}
+        style={{ background: "linear-gradient(90deg, #1C2744, #3A4B78)" }}
       >
         <span className="text-white font-semibold text-sm">
           Top Selling Products
@@ -19,7 +19,8 @@ export default function TopProducts({ topProducts = [], loading, onViewAll }) {
           View All
         </button>
       </div>
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-sm">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-100">
             <th className="text-left px-4 py-2.5 text-gray-500 font-medium text-xs">
@@ -101,6 +102,7 @@ export default function TopProducts({ topProducts = [], loading, onViewAll }) {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

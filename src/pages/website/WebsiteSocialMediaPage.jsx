@@ -55,7 +55,7 @@ export default function WebsiteSocialMediaPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-4">
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold text-gray-800">Social Media Update</h1>
         <button type="button" className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-4 py-2 rounded-lg transition">
           ▶ টিউটোরিয়াল দেখুন
@@ -67,14 +67,14 @@ export default function WebsiteSocialMediaPage() {
         {success && <div className="px-6 py-3 bg-green-50 border-b border-green-200 text-green-600 text-xs">{success}</div>}
 
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-[280px_1fr_160px] bg-gray-100 border-b border-gray-200">
+          <div className="hidden grid-cols-[220px_1fr_140px] bg-gray-100 border-b border-gray-200 md:grid lg:grid-cols-[280px_1fr_160px]">
             <div className="px-6 py-3 text-sm font-semibold text-gray-600 text-center">Platform</div>
             <div className="px-6 py-3 text-sm font-semibold text-gray-600 text-center">URL</div>
             <div className="px-6 py-3 text-sm font-semibold text-gray-600 text-center">Status</div>
           </div>
 
           {platforms.map((p) => (
-            <div key={p.key} className="grid grid-cols-[280px_1fr_160px] items-center border-b border-gray-100 last:border-0 hover:bg-gray-50/40 transition">
+            <div key={p.key} className="grid gap-3 border-b border-gray-100 p-4 last:border-0 hover:bg-gray-50/40 transition md:grid-cols-[220px_1fr_140px] md:items-center md:p-0 lg:grid-cols-[280px_1fr_160px]">
               <div className="px-6 py-4 text-sm text-gray-700">{p.label}</div>
               <div className="px-6 py-4">
                 <input type="text" value={p.url} onChange={(e) => setUrl(p.key, e.target.value)}

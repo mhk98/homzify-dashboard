@@ -330,7 +330,7 @@ export default function ProductCreatePage({ onNavigate }) {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-bold text-gray-800">Product Create</h1>
         <div className="flex items-center gap-2">
           <button
@@ -355,7 +355,7 @@ export default function ProductCreatePage({ onNavigate }) {
           {submitError && (
             <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg">{submitError}</div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField label="Product Name" required>
               <input type="text" value={name} onChange={e => handleNameChange(e.target.value)} className={inputCls} placeholder="Product name" />
             </FormField>
@@ -363,7 +363,7 @@ export default function ProductCreatePage({ onNavigate }) {
               <input type="text" value={slug} onChange={e => setSlug(e.target.value)} className={inputCls} placeholder="auto-generated" />
             </FormField>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <FormField label="Categories" required>
               <div className="relative">
                 <select
@@ -412,7 +412,7 @@ export default function ProductCreatePage({ onNavigate }) {
               </div>
             </FormField>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <FormField label="Brand">
               <div className="relative">
                 <select
@@ -435,7 +435,7 @@ export default function ProductCreatePage({ onNavigate }) {
               <input type="text" value={sku} onChange={e => setSku(e.target.value)} className={inputCls} />
             </FormField>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <FormField label="Advance Amount">
               <input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} className={inputCls} />
             </FormField>
@@ -482,12 +482,12 @@ export default function ProductCreatePage({ onNavigate }) {
       {/* Price & Variation */}
       <SectionCard title="Price & Variation">
         <div className="space-y-4">
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-6 space-y-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className="lg:col-span-6 space-y-3">
               <FormField label="Color">
                 <div className="space-y-3">
                   {selectedColorRows.map((row, idx) => (
-                    <div key={row.key} className="grid grid-cols-[1fr_1fr_44px] gap-2">
+                    <div key={row.key} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_44px]">
                       <div className="relative">
                         <select className={selectCls} value={row.colorId} onChange={e => updateColorRow(idx, 'colorId', e.target.value)}>
                           <option value="">Select Color</option>
@@ -513,7 +513,7 @@ export default function ProductCreatePage({ onNavigate }) {
                 <Plus size={13} /> Add Color
               </button>
             </div>
-            <div className="col-span-6">
+            <div className="lg:col-span-6">
               <FormField label="Attribute">
                 <div className="flex min-h-10 flex-wrap items-center gap-2 border border-gray-300 rounded-lg px-2 py-1.5 bg-white">
                   {selectedAttributes.map(attribute => (
@@ -535,7 +535,7 @@ export default function ProductCreatePage({ onNavigate }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] rounded-lg border border-gray-200 bg-gray-50 p-3">
             <input type="number" className={inputCls} placeholder="Enter Purchase Price" value={bulkPrice.purchasePrice} onChange={e => setBulkPrice(prev => ({ ...prev, purchasePrice: e.target.value }))} />
             <input type="number" className={inputCls} placeholder="Enter Old Price" value={bulkPrice.oldPrice} onChange={e => setBulkPrice(prev => ({ ...prev, oldPrice: e.target.value }))} />
             <input type="number" className={inputCls} placeholder="Enter New Price" value={bulkPrice.newPrice} onChange={e => setBulkPrice(prev => ({ ...prev, newPrice: e.target.value }))} />
@@ -592,7 +592,7 @@ export default function ProductCreatePage({ onNavigate }) {
 
       {/* Purchase */}
       <SectionCard title="Purchase">
-        <div className="grid grid-cols-4 gap-4 items-end">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-2">Purchase</label>
             <Toggle checked={purchaseEnabled} onChange={setPurchaseEnabled} />
@@ -622,7 +622,7 @@ export default function ProductCreatePage({ onNavigate }) {
       </SectionCard>
 
       {/* Description */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
         <RichEditor
           label="Description"
           required
@@ -633,7 +633,7 @@ export default function ProductCreatePage({ onNavigate }) {
       </div>
 
       {/* Short Description */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
         <RichEditor
           label="Short Description"
           value={shortDescription}
@@ -645,7 +645,7 @@ export default function ProductCreatePage({ onNavigate }) {
       {/* SEO */}
       <SectionCard title="SEO and Meta">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField label="Meta Title">
               <input type="text" value={metaTitle} onChange={e => setMetaTitle(e.target.value)} className={inputCls} />
             </FormField>
@@ -662,7 +662,7 @@ export default function ProductCreatePage({ onNavigate }) {
       {/* Gift Wrapping */}
       <SectionCard title="For Gift For Gift Wrapping">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField label="Title">
               <input type="text" value={giftTitle} onChange={e => setGiftTitle(e.target.value)} className={inputCls} />
             </FormField>
@@ -674,8 +674,8 @@ export default function ProductCreatePage({ onNavigate }) {
       </SectionCard>
 
       {/* Toggles + Submit */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div className="flex items-center gap-10 mb-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-6 mb-5">
           <div className="flex flex-col items-center gap-2">
             <span className="text-xs font-semibold text-gray-600">Status</span>
             <Toggle checked={status} onChange={setStatus} />

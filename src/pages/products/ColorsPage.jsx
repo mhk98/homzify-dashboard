@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Edit2, Trash2, Copy, Printer, FileText, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Edit2, Trash2, Copy, Printer, FileText, Search, ChevronLeft, ChevronRight, Loader2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useColors } from '../../hooks/useProducts';
 import { colorService } from '../../services/productService';
 
@@ -16,6 +16,7 @@ function isDark(hex) {
 export default function ColorsPage({ onNavigate, onEditColor }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
   const { data: allColors, meta, loading, error, refetch } = useColors({ limit: 500 });
 
   const filtered = useMemo(() => {
@@ -36,6 +37,24 @@ export default function ColorsPage({ onNavigate, onEditColor }) {
       refetch();
     } catch (e) {
       alert(e.message);
+    }
+  }
+
+  async function handleToggleStatus(color) {
+    const active = color.status === 'Active' || color.status === 'active';
+    const nextStatus = active ? 'Inactive' : 'Active';
+    setStatusUpdatingId(color.Id);
+    try {
+      await colorService.update(color.Id, {
+        name: color.name,
+        hex: color.hex || '#8B0000',
+        status: nextStatus,
+      });
+      refetch();
+    } catch (e) {
+      alert(e.message || 'Color status update করতে সমস্যা হয়েছে');
+    } finally {
+      setStatusUpdatingId(null);
     }
   }
 
@@ -125,6 +144,11 @@ export default function ColorsPage({ onNavigate, onEditColor }) {
                           >
                             <Trash2 size={11} />
                           </button>
+                          <StatusToggleBtn
+                            active={color.status === 'Active' || color.status === 'active'}
+                            loading={statusUpdatingId === color.Id}
+                            onClick={() => handleToggleStatus(color)}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -175,6 +199,20 @@ function StatusBadge({ status }) {
     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
       {active ? 'Active' : 'Inactive'}
     </span>
+  );
+}
+
+function StatusToggleBtn({ active, loading, onClick }) {
+  return (
+    <button
+      type="button"
+      title={active ? 'Make Inactive' : 'Make Active'}
+      onClick={onClick}
+      disabled={loading}
+      className={`w-6 h-6 rounded flex items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-60 ${active ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`}
+    >
+      {loading ? <Loader2 size={12} className="animate-spin" /> : active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+    </button>
   );
 }
 

@@ -33,7 +33,7 @@ export default function TiktokPixelsPage({ onCreate, onEdit }) {
         </button>
       </div>
       <div className="rounded bg-white p-4 shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-gray-100 text-left text-gray-600">
             <tr><th className="p-3">SL</th><th className="p-3">Pixel Code</th><th className="p-3">Test Event</th><th className="p-3">Status</th><th className="p-3">Action</th></tr>
           </thead>

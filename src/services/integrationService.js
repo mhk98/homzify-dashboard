@@ -1,4 +1,8 @@
 import { apiRequest } from '../utils/apiClient';
 export const integrationService = {
-  test: (type, provider) => apiRequest(`/integrations/${type}/test`, { method: 'POST', body: JSON.stringify({ provider }) }),
+  test: (type, provider, config) =>
+    apiRequest(`/integrations/${type}/test`, {
+      method: 'POST',
+      body: JSON.stringify(config ? { provider, config } : { provider }),
+    }),
 };

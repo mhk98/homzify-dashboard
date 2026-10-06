@@ -1,258 +1,371 @@
+import { useEffect } from "react";
 import { ArrowLeft, Printer } from "lucide-react";
+import {
+  getLogo,
+  getSiteName,
+  normalizeSettingData,
+} from "../utils/siteBranding";
+import { imageUrl } from "../utils/assetUrl";
+import { formatInvoiceNumber } from "../utils/invoiceNumber";
 
-export default function InvoicePage({ order, onBack }) {
+function parseOrderNote(note) {
+  if (!note || typeof note !== "string") return {};
+  try {
+    const parsed = JSON.parse(note);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function invoiceNumber(order) {
+  return formatInvoiceNumber(order);
+}
+
+function money(value) {
+  return `${Number(value || 0).toLocaleString()}৳`;
+}
+
+function formatDate(value) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
+}
+
+function formatPaymentMethod(value) {
+  const normalized = String(value || "cod").trim();
+  const key = normalized.toLowerCase().replace(/[\s_-]+/g, "_");
+  const labels = {
+    cod: "Cash on Delivery",
+    cash_on_delivery: "Cash on Delivery",
+    bkash: "Bkash",
+    nagad: "Nagad",
+    rocket: "Rocket",
+    sslcommerz: "SSLCommerz",
+    card: "Card",
+    bank_transfer: "Bank Transfer",
+  };
+  return (
+    labels[key] ||
+    normalized
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+  );
+}
+
+function getItemImage(item) {
+  if (item.image || item.productImage) return item.image || item.productImage;
+  if (Array.isArray(item.images) && item.images[0]) return item.images[0];
+  if (typeof item.images === "string") {
+    try {
+      const parsed = JSON.parse(item.images);
+      if (Array.isArray(parsed) && parsed[0]) return parsed[0];
+    } catch {
+      return item.images;
+    }
+  }
+  return "";
+}
+
+function getItems(order, meta) {
+  const source = Array.isArray(order.items)
+    ? order.items
+    : Array.isArray(meta.items)
+      ? meta.items
+      : [];
+
+  if (source.length) {
+    return source.map((item, index) => {
+      const qty = Number(item.qty || item.quantity || 1) || 1;
+      const unitPrice = Number(item.price || item.salePrice || 0);
+      const total = Number(item.total || item.lineTotal || unitPrice * qty);
+      return {
+        id: item.id || item.productId || index,
+        name: item.name || item.productName || "Product",
+        qty,
+        unitPrice: unitPrice || Math.round(total / qty),
+        total,
+        image: getItemImage(item),
+      };
+    });
+  }
+
+  const qty = Number(order.quantity || 1) || 1;
+  const total = Number(order.totalBill || order.total || 0);
+  return [
+    {
+      id: order.Id || "single",
+      name: order.productName || "Product",
+      qty,
+      unitPrice: Math.round(total / qty),
+      total,
+      image: order.productImage || "",
+    },
+  ];
+}
+
+function buildBarcode(seed) {
+  const text = String(seed || "000000");
+  const values = Array.from({ length: 58 }, (_, index) => {
+    const code = text.charCodeAt(index % text.length) || 48;
+    return 18 + ((code + index * 7) % 36);
+  });
+  return values;
+}
+
+export default function InvoicePage({
+  order,
+  onBack,
+  siteSettings,
+  autoPrint = false,
+}) {
+  useEffect(() => {
+    if (!autoPrint || !order) return undefined;
+    const timer = window.setTimeout(() => window.print(), 150);
+    return () => window.clearTimeout(timer);
+  }, [autoPrint, order?.Id]);
+
   if (!order) return null;
 
-  const subTotal = order.bill;
-  const shipping = 80;
-  const discount = 0;
-  const paid = order.advance || 0;
-  const payable = subTotal + shipping - discount;
-  const remaining = payable - paid;
-
-  function handlePrint() {
-    window.print();
-  }
+  const meta = parseOrderNote(order.note);
+  const settings = normalizeSettingData(siteSettings);
+  const items = getItems(order, meta);
+  const subtotal =
+    Number(order.subtotal ?? meta.subtotal) ||
+    items.reduce((sum, item) => sum + item.total, 0);
+  const shipping = Number(order.deliveryCharge ?? meta.deliveryCharge ?? 0);
+  const discount = Number(meta.discount || order.discount || 0);
+  const finalTotal =
+    Number(order.totalBill || order.total || meta.total) ||
+    Math.max(0, subtotal + shipping - discount);
+  const paid = Number(order.advance || order.paid || meta.paid || 0);
+  const due = Math.max(0, finalTotal - paid);
+  const customerAddress =
+    order.customerAddress ||
+    meta.customerAddress ||
+    [order.customerArea, order.customerDistrict].filter(Boolean).join(", ");
+  const sellerName =
+    getSiteName(settings) || settings.companyName || "Holy Deen";
+  const sellerPhone = settings.phone || settings.phoneNumber || "+880 1354-427155";
+  const sellerEmail = settings.email || "holydeenbd@gmail.com";
+  const sellerAddress =
+    settings.address || "House-13, Block-D, Road-1, Mirpur-2, Dhaka";
+  const logo = getLogo(settings) || "/homzify-logo.jpeg";
+  const invoiceNo = invoiceNumber(order);
+  const orderDate = order.orderDate || order.createdAt || meta.orderDate;
+  const paymentMethod = formatPaymentMethod(
+    order.paymentMethod || meta.paymentMethod,
+  );
+  const barcodeBars = buildBarcode(invoiceNo);
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-100 min-h-full">
-      {/* ── Top bar ── */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between no-print">
+      <div className="no-print mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm font-medium transition"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition hover:text-indigo-800"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={15} />
           Back To Order
         </button>
         <button
-          onClick={handlePrint}
-          className="w-9 h-9 bg-teal-500 hover:bg-teal-600 text-white rounded-lg flex items-center justify-center transition"
+          onClick={() => window.print()}
+          className="inline-flex h-8 w-8 items-center justify-center rounded bg-teal-500 text-white transition hover:bg-teal-600"
           title="Print Invoice"
         >
-          <Printer size={16} />
+          <Printer size={15} />
         </button>
+        <span className="w-24" />
       </div>
 
-      {/* ── Invoice Card ── */}
-      <div className="max-w-3xl mx-auto my-6 px-4">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden invoice-card">
-          {/* ── Header: Logo + Barcode ── */}
-          <div className="flex items-start justify-between px-8 pt-8 pb-4">
-            {/* Logo */}
-            <div className="flex-shrink-0">
-              <div
-                className="w-28 h-28 rounded-full flex flex-col items-center justify-center shadow-lg border-4 border-yellow-400"
-                style={{
-                  background:
-                    "radial-gradient(circle at 40% 40%, #1a1a2e, #0d0d1a)",
-                }}
-              >
-                <span
-                  className="text-yellow-400 text-2xl font-bold"
-                  style={{ fontFamily: "serif" }}
-                >
-                  وجيه
-                </span>
-                <span className="text-yellow-300 text-xs font-semibold tracking-wider mt-0.5">
-                  Homzify
-                </span>
-              </div>
-            </div>
-
-            {/* Barcode + Invoice ID */}
-            <div className="text-right">
-              {/* Barcode visual */}
-              <div className="flex justify-end gap-px mb-2">
-                {Array.from({ length: 60 }, (_, i) => {
-                  const h = [12, 28, 20, 28, 16, 28, 24, 20, 28, 16][i % 10];
-                  return (
-                    <div
-                      key={i}
-                      className="bg-gray-900"
-                      style={{ width: i % 3 === 0 ? 3 : 1.5, height: h }}
-                    />
-                  );
-                })}
-              </div>
-              <div className="text-xs text-gray-700 mt-1">
-                ইনভয়েস আইডি :{" "}
-                <span className="font-bold">
-                  #{order.orderId.replace("WZ-", "0000")}
-                </span>
-              </div>
-              <div className="text-xs text-gray-700 mt-0.5">
-                অর্ডার টাইম :{" "}
-                <span className="font-semibold">{order.date}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Seller + Delivery Address ── */}
-          <div className="grid grid-cols-2 gap-6 px-8 py-4 border-t border-gray-100">
-            {/* Seller */}
+      <div className="mx-auto flex max-w-5xl justify-center overflow-x-auto px-4 pb-10 sm:px-6">
+        <div className="invoice-page min-w-[720px] bg-white px-8 py-8 text-[16px] text-gray-900 shadow-sm">
+          <header className="grid grid-cols-2 gap-8">
             <div>
-              <div className="text-sm font-bold text-gray-800 mb-2">
-                বিক্রেতা
-              </div>
-              <div className="text-sm text-gray-700 leading-relaxed space-y-0.5">
-                <div className="font-semibold">Homzify</div>
-                <div>homzify@gmail.com</div>
-                <div>01518301098</div>
-                <div className="text-xs text-gray-500 leading-snug">
-                  500/3 - C (খিলগাঁও মডেল কলেজের পিছনের রাস্তা), খিলগাঁও ঢাকা
-                  ১২১৯
-                </div>
-              </div>
+              <img
+                src={logo}
+                alt={sellerName}
+                className="h-40 w-40 rounded-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
             </div>
 
-            {/* Delivery Address */}
             <div className="text-right">
-              <div className="text-sm font-bold text-gray-800 mb-2">
-                পণ্য ডেলিভারির ঠিকানা
+              <div className="ml-auto mb-4 flex h-12 w-44 items-end justify-end gap-px">
+                {barcodeBars.map((height, index) => (
+                  <span
+                    key={index}
+                    className="block bg-black"
+                    style={{ width: index % 5 === 0 ? 3 : 1, height }}
+                  />
+                ))}
               </div>
-              <div className="text-sm text-gray-700 leading-relaxed space-y-0.5">
-                <div className="font-semibold">{order.customer.name}</div>
-                <div>{order.customer.phone}</div>
+              <div className="leading-7">
                 <div>
-                  {order.customer.area}, {order.customer.district}
+                  ইনভয়েস আইডি : <strong>{invoiceNo}</strong>
+                </div>
+                <div>
+                  অর্ডার টাইম : <strong>{formatDate(orderDate)}</strong>
                 </div>
               </div>
             </div>
-          </div>
+          </header>
 
-          {/* ── Product Table ── */}
-          <div className="px-8 py-2">
-            <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-2.5 text-left text-gray-600 font-semibold">
-                    ছবি
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-gray-600 font-semibold">
-                    বিবরণ
-                  </th>
-                  <th className="px-4 py-2.5 text-center text-gray-600 font-semibold">
-                    পরিমান
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-gray-600 font-semibold">
-                    মোট মূল্য
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-100">
-                  <td className="px-4 py-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-amber-50 to-yellow-100 border border-amber-200 rounded flex items-center justify-center text-lg">
-                      🧴
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-800">
-                      {order.product}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      Size: 12ml
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-700">
-                    {order.qty} × {order.bill}৳
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-800">
-                    {order.bill}৳
-                  </td>
-                </tr>
-
-                {/* Summary rows */}
-                <SummaryRow label="পণ্যের মোট মূল্য" value={`${subTotal}৳`} />
-                <SummaryRow label="ডেলিভারি চার্জ (+)" value={`${shipping}৳`} />
-                <SummaryRow label="ছাড় (-)" value={`${discount}৳`} />
-                <SummaryRow label="পরিশোধ যোগ্য" value={`${payable}৳`} bold />
-                <SummaryRow label="পরিশোধ" value={`${paid}৳`} />
-                <SummaryRow
-                  label="বাকি"
-                  value={`${remaining}৳`}
-                  bold
-                  highlight
-                />
-              </tbody>
-            </table>
-          </div>
-
-          {/* ── Transaction Table ── */}
-          <div className="px-8 py-4">
-            <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  {[
-                    "Transaction Date",
-                    "Payment Getway",
-                    "Transaction ID",
-                    "Account Number",
-                    "Amount",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-2.5 text-left text-gray-600 font-semibold text-xs"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="px-4 py-2.5 text-xs text-gray-700">
-                    {order.date}
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-700">Bkash</td>
-                  <td className="px-4 py-2.5 text-xs text-gray-400">—</td>
-                  <td className="px-4 py-2.5 text-xs text-gray-400">—</td>
-                  <td className="px-4 py-2.5 text-xs text-gray-700">{paid}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* ── Footer ── */}
-          <div className="px-8 pb-8 pt-2 text-center border-t border-gray-100">
-            <div className="text-blue-600 text-sm font-semibold cursor-pointer hover:underline">
-              Terms &amp; Conditions
+          <section className="mt-12 grid grid-cols-2 gap-10">
+            <div className="leading-7">
+              <h2 className="mb-2 font-bold">বিক্রেতা</h2>
+              <p>{sellerName}</p>
+              <p>{sellerEmail}</p>
+              <p>{sellerPhone}</p>
+              <p>{sellerAddress}</p>
             </div>
-            <div className="text-xs text-gray-500 mt-1.5">
+
+            <div className="text-right leading-7">
+              <h2 className="mb-2 font-bold">পণ্য ডেলিভারির ঠিকানা</h2>
+              <p>{order.customerName || "Customer"}</p>
+              <p>{order.customerPhone || "N/A"}</p>
+              <p>{customerAddress || "N/A"}</p>
+            </div>
+          </section>
+
+          <table className="mt-12 w-full border-collapse">
+            <thead>
+              <tr className="border-b border-gray-300 text-left text-gray-600">
+                <th className="w-24 py-3 font-bold">ছবি</th>
+                <th className="py-3 font-bold">বিবরণ</th>
+                <th className="w-36 py-3 text-center font-bold">পরিমাণ</th>
+                <th className="w-36 py-3 text-right font-bold">মোট মূল্য</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id} className="border-b border-gray-200">
+                  <td className="py-4">
+                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden border border-gray-100 bg-gray-50 text-[10px] text-gray-300">
+                      {item.image ? (
+                        <img
+                          src={imageUrl(item.image)}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                            event.currentTarget.parentElement.textContent =
+                              "IMG";
+                          }}
+                        />
+                      ) : (
+                        "IMG"
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 text-gray-700">{item.name}</td>
+                  <td className="py-4 text-center text-gray-700">
+                    {item.qty} x {money(item.unitPrice)}
+                  </td>
+                  <td className="py-4 text-right text-gray-700">
+                    {money(item.total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <section className="mt-0 flex justify-end">
+            <table className="w-[390px] border-collapse text-gray-700">
+              <tbody>
+                <TotalRow
+                  label="পণ্যের মোট মূল্য"
+                  value={money(subtotal)}
+                  bold
+                />
+                <TotalRow
+                  label="ডেলিভারি চার্জ (+)"
+                  value={money(shipping)}
+                  bold
+                />
+                <TotalRow label="ছাড় (-)" value={money(discount)} bold />
+                <TotalRow label="পরিশোধ যোগ্য" value={money(finalTotal)} bold />
+                <TotalRow label="পরিশোধ" value={money(paid)} bold />
+                <TotalRow label="বাকি" value={money(due)} bold />
+              </tbody>
+            </table>
+          </section>
+
+          <table className="mt-8 w-full border-collapse text-sm text-gray-700">
+            <tbody>
+              <tr>
+                <InfoCell
+                  label="Transaction Date"
+                  value={formatDate(orderDate)}
+                />
+                <InfoCell label="Payment Gateway" value={paymentMethod} />
+                <InfoCell
+                  label="Transaction ID"
+                  value={order.transactionId || meta.transactionId || ""}
+                />
+                <InfoCell
+                  label="Account Number"
+                  value={order.accountNumber || meta.accountNumber || ""}
+                />
+                <InfoCell label="Amount" value={paid || 0} />
+              </tr>
+            </tbody>
+          </table>
+
+          <footer className="mt-8 border-t border-gray-200 pt-8 text-center">
+            <p className="font-bold italic text-indigo-600">
+              Terms & Conditions
+            </p>
+            <p className="mt-3 italic text-gray-500">
               * This is a computer generated invoice, does not require any
               signature.
-            </div>
-          </div>
+            </p>
+          </footer>
         </div>
       </div>
 
-      {/* Print styles */}
       <style>{`
+        .invoice-page {
+          width: 760px;
+          min-height: 986px;
+          font-family: Arial, Helvetica, sans-serif;
+        }
         @media print {
-          .no-print { display: none !important; }
-          body { background: white; }
-          .invoice-card { box-shadow: none; }
+          @page { size: A4; margin: 12mm; }
+          body { background: #fff !important; }
+          .no-print, header.no-print, aside { display: none !important; }
+          .invoice-page {
+            width: 100%;
+            min-height: auto;
+            box-shadow: none !important;
+            padding: 0 !important;
+          }
         }
       `}</style>
     </div>
   );
 }
 
-function SummaryRow({ label, value, bold, highlight }) {
+function TotalRow({ label, value, bold }) {
   return (
-    <tr className={`border-b border-gray-100 ${highlight ? "bg-teal-50" : ""}`}>
-      <td colSpan={2} />
-      <td
-        className={`px-4 py-2 text-sm ${bold ? "font-semibold text-gray-800" : "text-gray-600"}`}
-      >
-        {label}
-      </td>
-      <td
-        className={`px-4 py-2 text-right text-sm ${bold ? "font-bold text-gray-900" : "text-gray-700"} ${highlight ? "text-teal-700" : ""}`}
-      >
-        {value}
-      </td>
+    <tr className="border border-gray-200">
+      <td className={`px-3 py-2 ${bold ? "font-bold" : ""}`}>{label}</td>
+      <td className={`w-32 px-3 py-2 ${bold ? "font-bold" : ""}`}>{value}</td>
     </tr>
+  );
+}
+
+function InfoCell({ label, value }) {
+  return (
+    <td className="border border-gray-200 px-3 py-2 align-top">
+      <div>{label}</div>
+      <div className="mt-2">{value || ""}</div>
+    </td>
   );
 }

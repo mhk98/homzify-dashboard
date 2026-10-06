@@ -367,7 +367,7 @@ export default function ProductEditPage({ product, onNavigate }) {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-bold text-gray-800">Product Edit</h1>
         <div className="flex items-center gap-2">
           <button
@@ -394,7 +394,7 @@ export default function ProductEditPage({ product, onNavigate }) {
               {submitError}
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField label="Product Name" required>
               <input
                 type="text"
@@ -433,7 +433,7 @@ export default function ProductEditPage({ product, onNavigate }) {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <FormField label="Categories" required>
               <div className="relative">
                 <select
@@ -509,7 +509,7 @@ export default function ProductEditPage({ product, onNavigate }) {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <FormField label="Brands">
               <div className="relative">
                 <select
@@ -549,7 +549,7 @@ export default function ProductEditPage({ product, onNavigate }) {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <FormField label="Advance Payment Amount">
               <input
                 type="number"
@@ -654,7 +654,7 @@ export default function ProductEditPage({ product, onNavigate }) {
       {/* Price & Variation */}
       <SectionCard title="Price & Variation">
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
             <FormField label="Color">
               <div className="relative">
                 <select
@@ -676,8 +676,8 @@ export default function ProductEditPage({ product, onNavigate }) {
               </div>
             </FormField>
           </div>
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <table className="w-full text-xs">
+          <div className="border border-gray-200 rounded-lg overflow-x-auto">
+            <table className="w-full min-w-[760px] text-xs">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-4 py-2.5 text-left text-gray-600 font-semibold">
@@ -786,7 +786,7 @@ export default function ProductEditPage({ product, onNavigate }) {
 
       {/* Purchase */}
       <SectionCard title="Purchase">
-        <div className="grid grid-cols-4 gap-4 items-end">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-2">
               Purchase
@@ -823,7 +823,7 @@ export default function ProductEditPage({ product, onNavigate }) {
       </SectionCard>
 
       {/* Description */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
         <RichEditor
           label="Description"
           required
@@ -834,7 +834,7 @@ export default function ProductEditPage({ product, onNavigate }) {
       </div>
 
       {/* Short Description */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
         <RichEditor
           label="Short Description"
           value={shortDescription}
@@ -846,7 +846,7 @@ export default function ProductEditPage({ product, onNavigate }) {
       {/* SEO */}
       <SectionCard title="SEO and Meta">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField label="Meta Title">
               <input
                 type="text"
@@ -877,7 +877,7 @@ export default function ProductEditPage({ product, onNavigate }) {
 
       {/* Gift Wrapping */}
       <SectionCard title="For Gift Wrapping">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <FormField label="Title">
             <input
               type="text"
@@ -898,8 +898,8 @@ export default function ProductEditPage({ product, onNavigate }) {
       </SectionCard>
 
       {/* Toggles + Submit */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div className="flex items-center gap-10 mb-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-6 mb-5">
           <div className="flex flex-col items-center gap-2">
             <span className="text-xs font-semibold text-gray-600">Status</span>
             <Toggle checked={status} onChange={setStatus} />

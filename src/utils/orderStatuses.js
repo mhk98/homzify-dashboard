@@ -32,7 +32,7 @@ export function toOrderStatusKey(value) {
 }
 
 export function normalizeOrderStatuses(rows) {
-  const source = Array.isArray(rows) && rows.length ? rows : DEFAULT_ORDER_STATUSES;
+  const source = Array.isArray(rows) && rows.length ? [...DEFAULT_ORDER_STATUSES, ...rows] : DEFAULT_ORDER_STATUSES;
   const fallbackByKey = Object.fromEntries(DEFAULT_ORDER_STATUSES.map((s) => [s.key, s]));
   const seen = new Set();
 
@@ -58,7 +58,7 @@ export function buildStatusMaps(statuses) {
   return {
     statuses: normalized,
     labels: {
-      all: 'All Order',
+      all: 'All Orders',
       ...Object.fromEntries(normalized.map((s) => [s.key, s.label])),
     },
     classes: Object.fromEntries(normalized.map((s) => [s.key, s.className])),

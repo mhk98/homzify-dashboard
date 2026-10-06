@@ -8,7 +8,7 @@ import { useProducts } from '../../hooks/useProducts';
 import { landingPageService } from '../../services/landingPageService';
 
 const TEMPLATES = [
-  'Giveaway Campaign',
+  'Murda Moshari Offer',
   'Template Design 1',
   'Template Design 2',
   'Template Design 3',
@@ -71,6 +71,38 @@ function ToolbarBtn({ icon }) {
 
 function Sep() {
   return <span className="w-px h-4 bg-gray-300 mx-0.5" />;
+}
+
+function toCountdownDateTime(value) {
+  if (!value) return '';
+  const normalized = String(value).trim().replace(' ', 'T');
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (number) => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function fromCountdownDateTime(value) {
+  if (!value) return '';
+  return `${value.replace('T', ' ')}:00`;
+}
+
+function parseCountdownRange(value) {
+  if (!value) return { start: '', end: '' };
+  const parts = String(value).split(/\s+-\s+/);
+  if (parts.length >= 2) {
+    return {
+      start: toCountdownDateTime(parts[0]),
+      end: toCountdownDateTime(parts[1]),
+    };
+  }
+  return { start: '', end: toCountdownDateTime(value) };
+}
+
+function buildCountdownRange(start, end) {
+  const startValue = fromCountdownDateTime(start);
+  const endValue = fromCountdownDateTime(end);
+  return startValue && endValue ? `${startValue} - ${endValue}` : endValue;
 }
 
 function ProductSelector({ products, loading, value, onChange, required }) {
@@ -171,6 +203,195 @@ function ProductSelector({ products, loading, value, onChange, required }) {
   );
 }
 
+function ProductOptionsManager({ products, loading, value, onChange }) {
+  const selectedIds = value.map((item) => String(item.productId));
+
+  function toggleProduct(product) {
+    const id = String(product.Id);
+    if (selectedIds.includes(id)) {
+      onChange(value.filter((item) => String(item.productId) !== id));
+      return;
+    }
+    onChange([
+      ...value,
+      {
+        productId: id,
+        name: product.name,
+        price: getProductPrice(product),
+        originalPrice: product.oldPrice || product.regularPrice || "",
+        image: getProductImage(product),
+      },
+    ]);
+  }
+
+  function updateOption(productId, patch) {
+    onChange(
+      value.map((item) =>
+        String(item.productId) === String(productId) ? { ...item, ...patch } : item,
+      ),
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold text-gray-700">Checkout Product Options</p>
+          <p className="text-[11px] text-gray-400">Customer can select multiple products and quantity.</p>
+        </div>
+        <span className="rounded bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-600">
+          {value.length} selected
+        </span>
+      </div>
+      {loading ? (
+        <div className="rounded border border-gray-200 bg-white p-3 text-xs text-gray-400">Loading products...</div>
+      ) : (
+        <div className="grid max-h-72 gap-2 overflow-y-auto md:grid-cols-2">
+          {products.map((product) => {
+            const option = value.find((item) => String(item.productId) === String(product.Id));
+            const checked = Boolean(option);
+            return (
+              <div key={product.Id} className={`rounded border bg-white p-2 ${checked ? "border-blue-400" : "border-gray-200"}`}>
+                <label className="flex cursor-pointer items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleProduct(product)}
+                    className="mt-1 accent-blue-600"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-bold text-gray-700">{product.name}</p>
+                    <p className="text-[11px] text-gray-400">Default: ৳{getProductPrice(product) || 0}</p>
+                  </div>
+                </label>
+                {checked && (
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      value={option.price}
+                      onChange={(event) => updateOption(product.Id, { price: event.target.value })}
+                      placeholder="Offer price"
+                      className="rounded border border-gray-200 px-2 py-1.5 text-xs outline-none focus:border-blue-400"
+                    />
+                    <input
+                      type="number"
+                      value={option.originalPrice || ""}
+                      onChange={(event) => updateOption(product.Id, { originalPrice: event.target.value })}
+                      placeholder="Old price"
+                      className="rounded border border-gray-200 px-2 py-1.5 text-xs outline-none focus:border-blue-400"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CarouselItemsManager({ value, onChange }) {
+  function updateItem(index, patch) {
+    onChange(value.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
+  }
+
+  async function setImage(index, file) {
+    if (!file) return;
+    const image = await fileToDataUrl(file);
+    updateItem(index, { image });
+  }
+
+  function addItem() {
+    onChange([
+      ...value,
+      {
+        id: `carousel-${Date.now()}`,
+        name: '',
+        price: '',
+        originalPrice: '',
+        image: '',
+      },
+    ]);
+  }
+
+  function removeItem(index) {
+    onChange(value.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold text-gray-700">Carousel Product Cards</p>
+          <p className="text-[11px] text-gray-500">These cards are shown in the sliding carousel.</p>
+        </div>
+        <button
+          type="button"
+          onClick={addItem}
+          className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+        >
+          Add Card
+        </button>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {value.map((item, index) => (
+          <div key={item.id || index} className="rounded border border-emerald-100 bg-white p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-600">Card #{index + 1}</span>
+              <button
+                type="button"
+                onClick={() => removeItem(index)}
+                className="text-xs font-bold text-red-500 hover:text-red-600"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="grid gap-2">
+              <input
+                type="text"
+                value={item.name || ''}
+                onChange={(event) => updateItem(index, { name: event.target.value })}
+                placeholder="Card title"
+                className="rounded border border-gray-200 px-2 py-1.5 text-xs outline-none focus:border-emerald-400"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  value={item.price || ''}
+                  onChange={(event) => updateItem(index, { price: event.target.value })}
+                  placeholder="Offer price"
+                  className="rounded border border-gray-200 px-2 py-1.5 text-xs outline-none focus:border-emerald-400"
+                />
+                <input
+                  type="number"
+                  value={item.originalPrice || ''}
+                  onChange={(event) => updateItem(index, { originalPrice: event.target.value })}
+                  placeholder="Old price"
+                  className="rounded border border-gray-200 px-2 py-1.5 text-xs outline-none focus:border-emerald-400"
+                />
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => setImage(index, event.target.files?.[0])}
+                className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs text-gray-500 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-2 file:py-1 file:text-xs"
+              />
+              {item.image ? (
+                <img src={item.image} alt={item.name || `Carousel card ${index + 1}`} className="h-24 w-full rounded object-cover" />
+              ) : (
+                <div className="rounded border border-dashed border-gray-200 px-3 py-4 text-center text-xs font-semibold text-gray-400">
+                  No image selected
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPageCreatePage({ mode = 'create', campaign, onNavigate }) {
   const isEdit = mode === 'edit';
   const { data: products, loading: productsLoading } = useProducts({ limit: 200 });
@@ -251,6 +472,7 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
         ? await fileToDataUrl(form.prizeImage)
         : form.prizeImageUrl;
       const payload = {
+        pageType: 'Campaign',
         productId: selectedProductId || null,
         title: form.campaignTitle,
         subTitle: form.subTitle,
@@ -267,8 +489,20 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
         price: form.price,
         originalPrice: form.originalPrice,
         phone: form.phone,
-        countdown: form.countdownTime,
+        countdown: buildCountdownRange(form.countdownStart, form.countdownEnd),
         template: form.campaignTemplate,
+        regularData: {
+          ...parseJsonObject(campaign?.regularData),
+          productOptions: normalizeProductOptions(form.productOptions),
+          carouselItems: normalizeCarouselItems(form.carouselItems),
+          introText: form.introText,
+          offerImageTitle: form.offerImageTitle,
+          ctaText: form.ctaText,
+          orderTitle: form.orderTitle,
+          sizeTitle: form.sizeTitle,
+          deliveryInside: form.deliveryInside,
+          deliveryOutside: form.deliveryOutside,
+        },
         status: form.status,
       };
 
@@ -308,7 +542,7 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
       </div>
 
       {/* Form card */}
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6">
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-500">
             {error}
@@ -316,7 +550,7 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
         )}
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Row 1: Products + Banner Image */}
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Products <span className="text-red-500">*</span>
@@ -326,7 +560,7 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
                 loading={productsLoading}
                 value={selectedProductId}
                 onChange={(value) => set('productId', value)}
-                required={!isEdit}
+                required={!isEdit && form.productOptions.length === 0}
               />
             </div>
             <div>
@@ -348,6 +582,18 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
               />
             </div>
           </div>
+
+          <ProductOptionsManager
+            products={products}
+            loading={productsLoading}
+            value={form.productOptions}
+            onChange={(value) => set('productOptions', value)}
+          />
+
+          <CarouselItemsManager
+            value={form.carouselItems}
+            onChange={(value) => set('carouselItems', value)}
+          />
 
           {/* Campaign Title */}
           <div>
@@ -387,7 +633,7 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
           </div>
 
           {/* Row: Video + Review Title */}
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Video (Optional)
@@ -412,7 +658,7 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Offer Price
@@ -443,6 +689,58 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
                 type="text"
                 value={form.phone}
                 onChange={(e) => set('phone', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                CTA Button Text
+              </label>
+              <input
+                type="text"
+                value={form.ctaText}
+                onChange={(e) => set('ctaText', e.target.value)}
+                placeholder="অর্ডার করতে ক্লিক করুন"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Order Form Title
+              </label>
+              <input
+                type="text"
+                value={form.orderTitle}
+                onChange={(e) => set('orderTitle', e.target.value)}
+                placeholder="অর্ডার করতে আপনার সঠিক তথ্য দিয়ে নিচের ফর্মটি সম্পূর্ণ পূরণ করুন।"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Inside Dhaka Delivery Charge
+              </label>
+              <input
+                type="number"
+                value={form.deliveryInside}
+                onChange={(e) => set('deliveryInside', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Outside Dhaka Delivery Charge
+              </label>
+              <input
+                type="number"
+                value={form.deliveryOutside}
+                onChange={(e) => set('deliveryOutside', e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
               />
             </div>
@@ -521,6 +819,19 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
           {/* Description Title */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Intro Text
+            </label>
+            <textarea
+              value={form.introText}
+              onChange={(e) => set('introText', e.target.value)}
+              rows={2}
+              placeholder="মৃত ব্যক্তির শেষ গোসলে পর্দা, পরিচ্ছন্নতা ও সম্মানের জন্য..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Description Title <span className="text-red-500">*</span>
             </label>
             <input
@@ -532,7 +843,33 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
             />
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Offer Image Title
+            </label>
+            <input
+              type="text"
+              value={form.offerImageTitle}
+              onChange={(e) => set('offerImageTitle', e.target.value)}
+              placeholder="তাহলে আপনার এলাকায় এই মুর্দা মশারিটি দান করুন"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+            />
+          </div>
+
           {/* Description */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Size Section Title
+            </label>
+            <input
+              type="text"
+              value={form.sizeTitle}
+              onChange={(e) => set('sizeTitle', e.target.value)}
+              placeholder="মুর্দা মশারি সাইজ"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+            />
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               Description <span className="text-red-500">*</span>
@@ -569,19 +906,28 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
           </div>
 
           {/* Row: Countdown Time + Campaign Template */}
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Countdown Time <span className="text-red-500">*</span>
+                Countdown Time
               </label>
-              <input
-                type="text"
-                value={form.countdownTime}
-                onChange={(e) => set('countdownTime', e.target.value)}
-                required
-                placeholder="e.g. 2025-12-31 23:59:59"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="datetime-local"
+                  value={form.countdownStart}
+                  onChange={(e) => set('countdownStart', e.target.value)}
+                  aria-label="Countdown start time"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                />
+                <input
+                  type="datetime-local"
+                  value={form.countdownEnd}
+                  onChange={(e) => set('countdownEnd', e.target.value)}
+                  min={form.countdownStart || undefined}
+                  aria-label="Countdown end time"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -610,7 +956,6 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
           </div>
 
           <TemplatePicker
-            selected={form.campaignTemplate}
             content={previewContent}
             onSelect={(template) => set('campaignTemplate', template)}
             onPreview={setPreviewTemplate}
@@ -663,7 +1008,7 @@ export default function LandingPageCreatePage({ mode = 'create', campaign, onNav
   );
 }
 
-function TemplatePicker({ selected, content, onSelect, onPreview }) {
+function TemplatePicker({ content, onSelect, onPreview }) {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
@@ -671,16 +1016,12 @@ function TemplatePicker({ selected, content, onSelect, onPreview }) {
         <span className="text-[11px] font-semibold text-gray-400">Select before submit</span>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
-        {TEMPLATES.map((template) => {
-          const active = selected === template;
-          return (
+        {TEMPLATES.map((template) => (
             <button
               key={template}
               type="button"
               onClick={() => onSelect(template)}
-              className={`group overflow-hidden rounded-lg border bg-white text-left shadow-sm transition ${
-                active ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200 hover:border-blue-300'
-              }`}
+              className="group overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm transition hover:border-blue-300"
             >
               <TemplateThumbnail template={template} content={content} />
               <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2">
@@ -688,7 +1029,6 @@ function TemplatePicker({ selected, content, onSelect, onPreview }) {
                   <p className="text-xs font-bold text-gray-800">{template}</p>
                   <p className="text-[11px] text-gray-500">{getTemplateDescription(template)}</p>
                 </div>
-                {active ? <CheckCircle2 size={16} className="text-blue-600" /> : null}
               </div>
               <div className="border-t border-gray-100 px-3 py-2">
                 <span
@@ -712,8 +1052,7 @@ function TemplatePicker({ selected, content, onSelect, onPreview }) {
                 </span>
               </div>
             </button>
-          );
-        })}
+        ))}
       </div>
     </div>
   );
@@ -759,6 +1098,24 @@ function TemplatePreviewModal({ template, selected, content, onClose, onUse }) {
 }
 
 function TemplateThumbnail({ template, content }) {
+  if (template === 'Murda Moshari Offer') {
+    return (
+      <div className="h-36 bg-white p-2">
+        <div className="text-center text-[10px] font-black text-red-600">{content.title}</div>
+        <div className="mt-1 bg-black py-1 text-center text-[13px] font-black text-white">২ টি ফ্রি গিফট!!</div>
+        <div className="mt-1 bg-yellow-300 py-1 text-center text-[12px] font-black text-red-600">
+          মাত্র {formatPreviewMoney(content.price)}
+        </div>
+        <div className="relative mx-auto mt-2 h-16 w-28 overflow-hidden rounded bg-orange-50">
+          <PreviewImage src={content.bannerImage} alt={content.productName} className="absolute inset-0 h-full w-full" />
+        </div>
+        <div className="mx-auto mt-2 h-5 w-24 rounded bg-green-500 text-center text-[9px] font-black leading-5 text-white">
+          অর্ডার করুন
+        </div>
+      </div>
+    );
+  }
+
   if (template === 'Giveaway Campaign') {
     return (
       <div className="h-36 bg-[#fffdf8] p-3">
@@ -896,6 +1253,7 @@ function LargeTemplatePreview({ template, content }) {
 }
 
 function getTemplateDescription(template) {
+  if (template === 'Murda Moshari Offer') return 'Reference-style Bangla offer landing page';
   if (template === 'Giveaway Campaign') return 'Giveaway offer landing page like the reference';
   if (template === 'Template Design 2') return 'Product-focused light layout';
   if (template === 'Template Design 3') return 'Dark quick-order layout';
@@ -970,8 +1328,13 @@ function ImagePreview({ src, title, note, aspect = 'wide' }) {
 }
 
 function buildFormState(campaign) {
+  const countdownRange = parseCountdownRange(campaign?.countdown || campaign?.countdownTime || '');
+  const savedTemplate = campaign?.template || campaign?.campaignTemplate || '';
+  const regularData = parseJsonObject(campaign?.regularData);
   return {
     productId: campaign?.productId ? String(campaign.productId) : '',
+    productOptions: normalizeProductOptions(regularData.productOptions),
+    carouselItems: normalizeCarouselItems(regularData.carouselItems || regularData.productOptions),
     bannerImage: null,
     bannerImageUrl: campaign?.bannerImageUrl || '',
     prizeImage: null,
@@ -990,10 +1353,77 @@ function buildFormState(campaign) {
     price: campaign?.price || '',
     originalPrice: campaign?.originalPrice || '',
     phone: campaign?.phone || '',
-    countdownTime: campaign?.countdown || campaign?.countdownTime || '',
-    campaignTemplate: campaign?.template || campaign?.campaignTemplate || TEMPLATES[0],
+    introText: regularData.introText || '',
+    offerImageTitle: regularData.offerImageTitle || '',
+    ctaText: regularData.ctaText || 'অর্ডার করতে ক্লিক করুন',
+    orderTitle: regularData.orderTitle || 'অর্ডার করতে আপনার সঠিক তথ্য দিয়ে নিচের ফর্মটি সম্পূর্ণ পূরণ করুন।',
+    sizeTitle: regularData.sizeTitle || '',
+    deliveryInside: regularData.deliveryInside || '70',
+    deliveryOutside: regularData.deliveryOutside || '130',
+    countdownStart: countdownRange.start,
+    countdownEnd: countdownRange.end,
+    campaignTemplate: TEMPLATES.includes(savedTemplate) ? savedTemplate : TEMPLATES[0],
     status: campaign?.status ?? true,
   };
+}
+
+function parseJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeProductOptions(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => ({
+      productId: item.productId ? String(item.productId) : '',
+      name: String(item.name || '').trim(),
+      price: item.price === undefined || item.price === null ? '' : String(item.price),
+      originalPrice: item.originalPrice === undefined || item.originalPrice === null ? '' : String(item.originalPrice),
+      image: item.image || '',
+    }))
+    .filter((item) => item.productId && item.name);
+}
+
+function normalizeCarouselItems(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => ({
+      id: item.id || item.productId || `carousel-${index}`,
+      name: String(item.name || '').trim(),
+      price: item.price === undefined || item.price === null ? '' : String(item.price),
+      originalPrice: item.originalPrice === undefined || item.originalPrice === null ? '' : String(item.originalPrice),
+      image: item.image || '',
+    }))
+    .filter((item) => item.name || item.image);
+}
+
+function getProductPrice(product) {
+  const variationPrice = Array.isArray(product?.variations)
+    ? product.variations.find((variation) => variation?.newPrice || variation?.oldPrice)?.newPrice ||
+      product.variations.find((variation) => variation?.newPrice || variation?.oldPrice)?.oldPrice
+    : null;
+  return product?.price || product?.newPrice || product?.salePrice || variationPrice || product?.advanceAmount || '';
+}
+
+function getProductImage(product) {
+  if (product?.image || product?.productImage) return product.image || product.productImage;
+  if (Array.isArray(product?.images) && product.images[0]) return product.images[0];
+  if (typeof product?.images === 'string') {
+    try {
+      const parsed = JSON.parse(product.images);
+      if (Array.isArray(parsed) && parsed[0]) return parsed[0];
+    } catch {
+      return product.images;
+    }
+  }
+  return '';
 }
 
 function fileToDataUrl(file) {

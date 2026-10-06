@@ -6,7 +6,13 @@ export default function GoogleAdsFormPage({ mode = 'create', config, onSave, onN
   const [form, setForm] = useState({
     conversionId: config?.conversionId || '',
     conversionLabel: config?.conversionLabel || '',
+    conversionActionId: config?.conversionActionId || '',
     customerId: config?.customerId || '',
+    developerToken: '',
+    clientId: '',
+    clientSecret: '',
+    refreshToken: '',
+    loginCustomerId: config?.loginCustomerId || '',
     status: config?.status || 'Active',
   });
   const [saving, setSaving] = useState(false);
@@ -19,7 +25,13 @@ export default function GoogleAdsFormPage({ mode = 'create', config, onSave, onN
     const payload = {
       conversionId: form.conversionId.trim(),
       conversionLabel: form.conversionLabel.trim(),
+      conversionActionId: form.conversionActionId.trim(),
       customerId: form.customerId.trim(),
+      developerToken: form.developerToken.trim(),
+      clientId: form.clientId.trim(),
+      clientSecret: form.clientSecret.trim(),
+      refreshToken: form.refreshToken.trim(),
+      loginCustomerId: form.loginCustomerId.trim(),
       status: form.status,
     };
     try {
@@ -45,11 +57,18 @@ export default function GoogleAdsFormPage({ mode = 'create', config, onSave, onN
         {[
           ['conversionId', 'Conversion ID', true],
           ['conversionLabel', 'Conversion Label', true],
+          ['conversionActionId', 'Conversion Action ID', false],
           ['customerId', 'Customer ID', false],
-        ].map(([key, label, required]) => (
+          ['loginCustomerId', 'Login Customer ID', false],
+          ['developerToken', 'Developer Token', false, 'password'],
+          ['clientId', 'OAuth Client ID', false, 'password'],
+          ['clientSecret', 'OAuth Client Secret', false, 'password'],
+          ['refreshToken', 'OAuth Refresh Token', false, 'password'],
+        ].map(([key, label, required, type = 'text']) => (
           <label key={key} className="mb-5 block">
             <span className="mb-2 block text-sm font-semibold text-gray-600">{label} {required && '*'}</span>
-            <input required={required} value={form[key]} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+            <input type={type} required={required} value={form[key]} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+              placeholder={isEdit && type === 'password' ? 'Leave blank to keep previous value' : ''}
               className="h-10 w-full rounded border border-gray-300 px-3 text-sm outline-none focus:border-indigo-400" />
           </label>
         ))}

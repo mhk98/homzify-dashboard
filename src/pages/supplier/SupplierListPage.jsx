@@ -52,7 +52,7 @@ export default function SupplierListPage({ onNavigate, onEditSupplier, onPayment
       </div>
 
       {/* Table card */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         {/* Toolbar */}
         <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-gray-100">
           <div className="flex items-center gap-2">

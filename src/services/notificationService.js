@@ -11,8 +11,13 @@ const SOCKET_BASE =
 export const notificationService = {
   getAll: (params = {}) => apiRequest(`/notifications${buildQuery(params)}`),
   getUnreadCount: () => apiRequest("/notifications/unread-count"),
-  markAsRead: (id) =>
-    apiRequest(`/notifications/${id}/read`, { method: "PATCH" }),
+  markAsRead: async (id) => {
+    try {
+      return await apiRequest(`/notifications/${id}/read`, { method: "PATCH" });
+    } catch {
+      return apiRequest(`/notifications/${id}/read`, { method: "POST" });
+    }
+  },
   markAllAsRead: () =>
     apiRequest("/notifications/read-all", { method: "PATCH" }),
   delete: (id) => apiRequest(`/notifications/${id}`, { method: "DELETE" }),

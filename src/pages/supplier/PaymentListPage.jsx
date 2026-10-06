@@ -152,10 +152,25 @@ export default function PaymentListPage({ onNavigate, onEditPayment }) {
           </select>
         </div>
 
-        <table className="w-full text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-xs">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              {['SL', 'Date', 'Supplier', 'Amount', 'Status', 'File', 'Action'].map((h) => (
+              {[
+                'SL',
+                'Date',
+                'Title',
+                'Supplier',
+                'Amount',
+                'Due',
+                'Method',
+                'Status',
+                'Sender',
+                'Transaction ID',
+                'Description',
+                'File',
+                'Action',
+              ].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-gray-500 font-semibold whitespace-nowrap">
                   {h}
                 </th>
@@ -165,25 +180,28 @@ export default function PaymentListPage({ onNavigate, onEditPayment }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-gray-400">Loading...</td>
+                <td colSpan={13} className="text-center py-10 text-gray-400">Loading...</td>
               </tr>
             )}
             {!loading && error && (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-red-400">{error}</td>
+                <td colSpan={13} className="text-center py-10 text-red-400">{error}</td>
               </tr>
             )}
             {!loading && !error && payments.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-gray-400">No data available</td>
+                <td colSpan={13} className="text-center py-10 text-gray-400">No data available</td>
               </tr>
             )}
             {!loading && payments.map((p, i) => (
               <tr key={p.Id} className="border-b border-gray-50 hover:bg-gray-50/60">
                 <td className="px-4 py-3 text-gray-500">{(page - 1) * perPage + i + 1}</td>
                 <td className="px-4 py-3 text-gray-600">{p.date}</td>
+                <td className="px-4 py-3 text-gray-700 font-medium min-w-[160px]">{p.paymentTitle || '-'}</td>
                 <td className="px-4 py-3 text-gray-700">{p.supplier?.name ?? '-'}</td>
                 <td className="px-4 py-3 text-gray-700 font-medium">৳{(p.amount || 0).toLocaleString()}</td>
+                <td className="px-4 py-3 text-gray-600">৳{(p.due || 0).toLocaleString()}</td>
+                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{p.method || '-'}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`px-2.5 py-1 rounded text-[10px] font-semibold ${
@@ -194,6 +212,11 @@ export default function PaymentListPage({ onNavigate, onEditPayment }) {
                   >
                     {p.status}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{p.sender || '-'}</td>
+                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{p.transactionId || '-'}</td>
+                <td className="px-4 py-3 text-gray-600 min-w-[180px] max-w-[260px] truncate" title={p.description || ''}>
+                  {p.description || '-'}
                 </td>
                 <td className="px-4 py-3 text-gray-600">{p.file || '-'}</td>
                 <td className="px-4 py-3">
@@ -218,6 +241,7 @@ export default function PaymentListPage({ onNavigate, onEditPayment }) {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Footer */}
         <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100">

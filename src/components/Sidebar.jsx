@@ -11,15 +11,18 @@ import {
   Bike, Banknote, MessageSquare, ShieldAlert,
   Cpu, Ticket, LayoutGrid, Activity, FileText, Folder, TrendingUp,
   PanelBottom, PanelTop,
+  X,
 } from 'lucide-react';
 import { orderStatusService, siteSettingService } from '../services/websiteService';
 import { applyDocumentFavicon, getFavicon, getLogo, getSiteName, normalizeSettingData } from '../utils/siteBranding';
 import { normalizeOrderStatuses } from '../utils/orderStatuses';
 import { cacheService } from '../services/cacheService';
+import { useAuth } from '../context/AuthContext';
+import { getPermissionSet, hasAnyPermission, hasPermission } from '../utils/permissions';
 
 // ── Orders submenu ──────────────────────────────────────────
 const orderSubMenuItems = [
-  { key: 'all', label: 'All Order', icon: List, color: 'text-cyan-400' },
+  { key: 'all', label: 'All Orders', icon: List, color: 'text-cyan-400' },
   { key: 'pending', label: 'Pending', icon: Clock, color: 'text-blue-400' },
   { key: 'packaging', label: 'Packaging', icon: Box, color: 'text-purple-400' },
   { key: 'confirmed', label: 'Confirmed', icon: CheckCircle, color: 'text-teal-400' },
@@ -66,6 +69,7 @@ const supplierSubMenuItems = [
 // ── Landing Page submenu ──────────────────────────────────────
 const landingPageSubMenuItems = [
   { key: 'landing_create', label: 'Create', icon: PlusCircle,  color: 'text-green-400' },
+  { key: 'landing_regular', label: 'Regular', icon: FilePlus,  color: 'text-teal-400' },
   { key: 'landing_manage', label: 'Manage', icon: LayoutList,  color: 'text-cyan-400'  },
   { key: 'landing_header', label: 'Header', icon: PanelTop, color: 'text-pink-400' },
   { key: 'landing_footer', label: 'Footer', icon: PanelBottom, color: 'text-amber-400' },
@@ -87,6 +91,7 @@ const customersSubMenuItems = [
 // ── Website Setting submenu ───────────────────────────────────
 const websiteSettingSubMenuItems = [
   { key: 'general_setting',  label: 'General Setting',  icon: SlidersHorizontal, color: 'text-blue-400'   },
+  { key: 'order_block',      label: 'Order Block',      icon: ShieldAlert,       color: 'text-red-400'    },
   { key: 'website_footer',   label: 'Footer',           icon: PanelBottom,       color: 'text-amber-400'  },
   { key: 'social_media',     label: 'Social Media',     icon: Share2,            color: 'text-pink-400'   },
   { key: 'contact',          label: 'Contact',          icon: Phone,             color: 'text-green-400'  },
@@ -162,7 +167,8 @@ const productSubMenuItems = [
   { key: 'reviews', label: 'Reviews', icon: Star, color: 'text-yellow-400' },
 ];
 
-export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onOrderStatusChange, orderCounts = {}, activeProductPage, onProductPageChange, activeSupplierPage, onSupplierPageChange, activePurchasePage, onPurchasePageChange, activeLandingPage, onLandingPageChange, activeAdminPage, onAdminPageChange, activeCustomersPage, onCustomersPageChange, activeWebsitePage, onWebsitePageChange, activeApiPage, onApiPageChange, activeMarketingPage, onMarketingPageChange, activeBlogsPage, onBlogsPageChange, activeBannerPage, onBannerPageChange, activeExpensePage, onExpensePageChange, activeReportsPage, onReportsPageChange, siteSettings: externalSiteSettings }) {
+export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onOrderStatusChange, orderCounts = {}, activeProductPage, onProductPageChange, activeSupplierPage, onSupplierPageChange, activePurchasePage, onPurchasePageChange, activeLandingPage, onLandingPageChange, activeAdminPage, onAdminPageChange, activeCustomersPage, onCustomersPageChange, activeWebsitePage, onWebsitePageChange, activeApiPage, onApiPageChange, activeMarketingPage, onMarketingPageChange, activeBlogsPage, onBlogsPageChange, activeBannerPage, onBannerPageChange, activeExpensePage, onExpensePageChange, activeReportsPage, onReportsPageChange, siteSettings: externalSiteSettings, mobileOpen = false, onMobileClose }) {
+  const { user } = useAuth();
   const [siteSettings, setSiteSettings] = useState(externalSiteSettings || null);
   const [dynamicOrderStatuses, setDynamicOrderStatuses] = useState(() => normalizeOrderStatuses());
   const [ordersOpen, setOrdersOpen] = useState(activePage === 'orders');
@@ -183,12 +189,27 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
   const currentSettings = externalSiteSettings || siteSettings;
   const currentLogo = getLogo(currentSettings);
   const siteName = getSiteName(currentSettings);
-  const dynamicOrderSubMenuItems = dynamicOrderStatuses.map((status, index) => ({
-    key: status.key,
-    label: status.label,
-    icon: ORDER_STATUS_ICONS[status.key] || CircleDot,
-    color: orderSubMenuItems.find((item) => item.key === status.key)?.color || ORDER_STATUS_ICON_COLORS[index % ORDER_STATUS_ICON_COLORS.length],
-  }));
+  const permissionSet = getPermissionSet(user);
+  const can = (permissions) => hasAnyPermission(permissionSet, Array.isArray(permissions) ? permissions : [permissions]);
+  const filteredLandingPageSubMenuItems = landingPageSubMenuItems.filter((item) => {
+    if (item.key === 'landing_header') return can('landing_page_header');
+    if (item.key === 'landing_footer') return can('landing_page_footer');
+    return can('landing_page');
+  });
+  const filteredAdminSubMenuItems = adminSubMenuItems.filter((item) => can(item.key));
+  const filteredCustomersSubMenuItems = customersSubMenuItems.filter((item) => {
+    if (item.key === 'ip_block') return can('ip_block');
+    return can('customers');
+  });
+  const dynamicOrderSubMenuItems = [
+    orderSubMenuItems[0],
+    ...dynamicOrderStatuses.map((status, index) => ({
+      key: status.key,
+      label: status.label,
+      icon: ORDER_STATUS_ICONS[status.key] || CircleDot,
+      color: orderSubMenuItems.find((item) => item.key === status.key)?.color || ORDER_STATUS_ICON_COLORS[index % ORDER_STATUS_ICON_COLORS.length],
+    })),
+  ];
 
   async function handleCacheClear() {
     if (cacheClearing || !window.confirm('Application cache clear করবেন?')) return;
@@ -275,21 +296,21 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
   function handleLandingClick() {
     const next = !landingOpen;
     setLandingOpen(next);
-    if (next) { onNavigate('landing'); onLandingPageChange('landing_create'); }
+    if (next) { onNavigate('landing'); onLandingPageChange(filteredLandingPageSubMenuItems[0]?.key || 'landing_manage'); }
   }
   function handleLandingSub(key) { onNavigate('landing'); onLandingPageChange(key); }
 
   function handleAdminClick() {
     const next = !adminOpen;
     setAdminOpen(next);
-    if (next) { onNavigate('admin'); onAdminPageChange('admin_user'); }
+    if (next) { onNavigate('admin'); onAdminPageChange(filteredAdminSubMenuItems[0]?.key || 'admin_user'); }
   }
   function handleAdminSub(key) { onNavigate('admin'); onAdminPageChange(key); }
 
   function handleCustomersClick() {
     const next = !customersOpen;
     setCustomersOpen(next);
-    if (next) { onNavigate('customers'); onCustomersPageChange('customer_list'); }
+    if (next) { onNavigate('customers'); onCustomersPageChange(filteredCustomersSubMenuItems[0]?.key || 'customer_list'); }
   }
   function handleCustomersSub(key) { onNavigate('customers'); onCustomersPageChange(key); }
 
@@ -344,14 +365,16 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
 
   return (
     <aside
-      className="w-56 min-h-screen flex-shrink-0 flex flex-col overflow-y-auto"
-      style={{ background: 'linear-gradient(180deg, #1a2468 0%, #1e2d7d 100%)' }}
+      className={`fixed inset-y-0 left-0 z-40 flex w-56 min-h-screen flex-shrink-0 flex-col overflow-y-auto transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+      style={{ background: 'linear-gradient(180deg, #121A2E 0%, #1C2744 52%, #2F3D63 100%)' }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 px-4 py-4 border-b border-blue-800 flex-shrink-0">
+      <div className="flex items-center gap-2 px-4 py-4 border-b border-blue-800/70 flex-shrink-0">
         {currentLogo && (
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10">
-            <img src={currentLogo} alt={siteName || 'Logo'} className="h-10 w-10 rounded-full object-cover" />
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm ring-2 ring-orange-300/80">
+            <img src={currentLogo} alt={siteName || 'Logo'} className="h-9 w-9 rounded-full object-cover" />
           </div>
         )}
         {siteName && (
@@ -359,13 +382,24 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             <div className="text-white font-bold text-base leading-tight">{siteName}</div>
           </div>
         )}
+        <button
+          type="button"
+          onClick={onMobileClose}
+          className="ml-auto rounded p-1 text-blue-100 hover:bg-white/10 md:hidden"
+          aria-label="Close sidebar"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       <nav className="py-2 flex-1">
         {/* Dashboard */}
-        <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activePage === 'dashboard'} onClick={() => onNavigate('dashboard')} />
+        {hasPermission(permissionSet, 'dashboard') && (
+          <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activePage === 'dashboard'} onClick={() => onNavigate('dashboard')} />
+        )}
 
         {/* ── Orders ── */}
+        {hasPermission(permissionSet, 'orders') && (
         <ExpandableItem
           icon={ShoppingCart}
           label="Orders"
@@ -386,8 +420,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
 
         {/* ── Products ── */}
+        {hasPermission(permissionSet, 'products') && (
         <ExpandableItem
           icon={Package}
           label="Products"
@@ -406,8 +442,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
 
         {/* ── Supplier ── */}
+        {hasPermission(permissionSet, 'supplier') && (
         <ExpandableItem
           icon={Truck}
           label="Supplier"
@@ -426,7 +464,9 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
         {/* ── Purchase ── */}
+        {hasPermission(permissionSet, 'purchase') && (
         <ExpandableItem
           icon={ShoppingBag}
           label="Purchase"
@@ -445,7 +485,9 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
         {/* ── Landing Page ── */}
+        {filteredLandingPageSubMenuItems.length > 0 && (
         <ExpandableItem
           icon={Globe}
           label="Landing Page"
@@ -453,7 +495,7 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
           isActive={activePage === 'landing'}
           onClick={handleLandingClick}
         >
-          {landingPageSubMenuItems.map((item) => (
+          {filteredLandingPageSubMenuItems.map((item) => (
             <SubItem
               key={item.key}
               icon={item.icon}
@@ -464,8 +506,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
 
         {/* ── Admin & Permission ── */}
+        {filteredAdminSubMenuItems.length > 0 && (
         <ExpandableItem
           icon={Shield}
           label="Admin & Permission"
@@ -473,7 +517,7 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
           isActive={activePage === 'admin'}
           onClick={handleAdminClick}
         >
-          {adminSubMenuItems.map((item) => (
+          {filteredAdminSubMenuItems.map((item) => (
             <SubItem
               key={item.key}
               icon={item.icon}
@@ -484,7 +528,9 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
         {/* ── Customers ── */}
+        {filteredCustomersSubMenuItems.length > 0 && (
         <ExpandableItem
           icon={Users}
           label="Customers"
@@ -492,7 +538,7 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
           isActive={activePage === 'customers'}
           onClick={handleCustomersClick}
         >
-          {customersSubMenuItems.map((item) => (
+          {filteredCustomersSubMenuItems.map((item) => (
             <SubItem
               key={item.key}
               icon={item.icon}
@@ -503,8 +549,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
 
         {/* ── Website Setting ── */}
+        {hasPermission(permissionSet, 'website_setting') && (
         <ExpandableItem
           icon={Settings}
           label="Website Setting"
@@ -523,8 +571,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
 
         {/* ── API Integration ── */}
+        {hasPermission(permissionSet, 'api_integration') && (
         <ExpandableItem
           icon={Zap}
           label="API Integration"
@@ -543,7 +593,9 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
         {/* ── Marketing Tools ── */}
+        {hasPermission(permissionSet, 'marketing_tools') && (
         <ExpandableItem
           icon={Megaphone}
           label="Marketing Tools"
@@ -562,8 +614,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
 
         {/* ── Blogs ── */}
+        {hasPermission(permissionSet, 'blogs') && (
         <ExpandableItem
           icon={BookOpen}
           label="Blogs"
@@ -582,8 +636,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
 
         {/* ── Banner & Ads ── */}
+        {hasPermission(permissionSet, 'banner_ads') && (
         <ExpandableItem
           icon={Image}
           label="Banner & Ads"
@@ -602,7 +658,9 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
         {/* ── Expense ── */}
+        {hasPermission(permissionSet, 'expense') && (
         <ExpandableItem
           icon={DollarSign}
           label="Expense"
@@ -621,8 +679,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
+        )}
 
         {/* ── Reports ── */}
+        {hasPermission(permissionSet, 'reports') && (
         <ExpandableItem
           icon={BarChart2}
           label="Reports"
@@ -641,7 +701,10 @@ export default function Sidebar({ activePage, onNavigate, activeOrderStatus, onO
             />
           ))}
         </ExpandableItem>
-        <SidebarItem icon={RefreshCw} label={cacheClearing ? "Clearing..." : "Cache Clear"} onClick={handleCacheClear} />
+        )}
+        {hasPermission(permissionSet, 'cache_clear') && (
+          <SidebarItem icon={RefreshCw} label={cacheClearing ? "Clearing..." : "Cache Clear"} onClick={handleCacheClear} />
+        )}
       </nav>
     </aside>
   );
@@ -655,22 +718,22 @@ function ExpandableItem({ icon: Icon, label, isOpen, isActive, badge, onClick, c
       <div
         onClick={onClick}
         className={`flex items-center justify-between px-4 py-2.5 cursor-pointer group transition-all duration-150 ${
-          isActive ? 'bg-blue-700 text-white' : 'text-blue-200 hover:bg-blue-800 hover:text-white'
+          isActive ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-inner' : 'text-blue-100 hover:bg-white/10 hover:text-white'
         }`}
       >
         <div className="flex items-center gap-3">
-          <Icon size={16} className={isActive ? 'text-white' : 'text-blue-300 group-hover:text-white'} />
+          <Icon size={16} className={isActive ? 'text-orange-200' : 'text-blue-200 group-hover:text-orange-200'} />
           <span className="text-sm font-medium">{label}</span>
         </div>
         <div className="flex items-center gap-1">
           {badge !== undefined && (
-            <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{badge}</span>
+            <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{badge}</span>
           )}
           {isOpen ? <ChevronDown size={13} className="opacity-60" /> : <ChevronRight size={13} className="opacity-60" />}
         </div>
       </div>
       {isOpen && (
-        <div className="bg-blue-950/40 border-l-2 border-blue-600 ml-4">
+        <div className="bg-blue-950/35 border-l-2 border-orange-400 ml-4">
           {children}
         </div>
       )}
@@ -683,7 +746,7 @@ function SubItem({ icon: Icon, label, color, badge, isActive, onClick }) {
     <div
       onClick={onClick}
       className={`flex items-center justify-between px-3 py-2 cursor-pointer transition-all duration-100 ${
-        isActive ? 'bg-blue-600 text-white' : 'text-blue-300 hover:bg-blue-800/50 hover:text-white'
+        isActive ? 'bg-blue-600 text-white' : 'text-blue-100 hover:bg-white/10 hover:text-white'
       }`}
     >
       <div className="flex items-center gap-2">
@@ -691,7 +754,7 @@ function SubItem({ icon: Icon, label, color, badge, isActive, onClick }) {
         <span className="text-xs">{label}</span>
       </div>
       {badge !== undefined && (
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-blue-800 text-blue-200'}`}>
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-blue-800/80 text-blue-100'}`}>
           {badge}
         </span>
       )}
@@ -704,11 +767,11 @@ function SidebarItem({ icon: Icon, label, active, hasChild, onClick }) {
     <div
       onClick={onClick}
       className={`flex items-center justify-between px-4 py-2.5 cursor-pointer group transition-all duration-150 ${
-        active ? 'bg-blue-600 text-white' : 'text-blue-200 hover:bg-blue-800 hover:text-white'
+        active ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-inner' : 'text-blue-100 hover:bg-white/10 hover:text-white'
       }`}
     >
       <div className="flex items-center gap-3">
-        <Icon size={16} className={active ? 'text-white' : 'text-blue-300 group-hover:text-white'} />
+        <Icon size={16} className={active ? 'text-orange-200' : 'text-blue-200 group-hover:text-orange-200'} />
         <span className="text-sm font-medium">{label}</span>
       </div>
       {hasChild && <ChevronRight size={14} className="opacity-60" />}

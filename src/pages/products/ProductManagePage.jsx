@@ -6,9 +6,12 @@ import {
   Search,
   Eye,
   Edit2,
-  Copy,
+  Archive,
   ChevronLeft,
   ChevronRight,
+  Loader2,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { useProducts } from "../../hooks/useProducts";
 import { productService } from "../../services/productService";
@@ -26,6 +29,143 @@ function parseImages(images) {
   return [];
 }
 
+function parseArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function firstFilled(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function productPrice(product) {
+  const variations = parseArray(product.variations);
+  const pricedVariation = variations.find((variation) =>
+    firstFilled(variation?.newPrice, variation?.salePrice, variation?.oldPrice),
+  );
+  return firstFilled(
+    product.price,
+    product.newPrice,
+    product.salePrice,
+    product.regularPrice,
+    pricedVariation?.newPrice,
+    pricedVariation?.salePrice,
+    pricedVariation?.oldPrice,
+  );
+}
+
+function productStock(product) {
+  const directStock = firstFilled(product.stock, product.quantity, product.qty);
+  if (directStock !== undefined) return directStock;
+
+  const variations = parseArray(product.variations);
+  const stockValues = variations
+    .map((variation) => Number(firstFilled(variation?.stock, variation?.quantity, variation?.qty)))
+    .filter((value) => Number.isFinite(value));
+
+  if (stockValues.length === 0) return "";
+  return stockValues.reduce((sum, value) => sum + value, 0);
+}
+
+function productCategoryLabel(product) {
+  return firstFilled(
+    product.category?.name,
+    product.categoryName,
+    product.Category?.name,
+    product.subcategory?.name,
+    product.subcategoryName,
+  );
+}
+
+function formatNumberish(value, suffix = "") {
+  if (value === undefined || value === null || value === "") return "—";
+  const num = Number(value);
+  if (Number.isFinite(num)) return `${num.toLocaleString()}${suffix}`;
+  return `${value}${suffix}`;
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10) || "—";
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function colorSizeLabel(row) {
+  const color = firstFilled(
+    row.colorName,
+    row.color?.name,
+    row.Color?.name,
+    row.color,
+  );
+  const size = firstFilled(row.attribute, row.size, row.sizeName, row.variant);
+  if (color && size) return `${color}, ${size}`;
+  if (color) return color;
+  if (size) return `, ${size}`;
+  return "—";
+}
+
+function getHistorySource(product) {
+  return (
+    parseArray(product.purchaseHistory).length
+      ? parseArray(product.purchaseHistory)
+      : parseArray(product.purchases).length
+        ? parseArray(product.purchases)
+        : parseArray(product.history).length
+          ? parseArray(product.history)
+          : parseArray(product.variations)
+  );
+}
+
+function purchaseHistoryRows(product) {
+  const source = getHistorySource(product);
+  if (source.length) {
+    return source.map((row, index) => ({
+      id: row.Id || row.id || `${product.Id || "product"}-${index}`,
+      date: firstFilled(
+        row.purchaseDate,
+        row.date,
+        row.createdAt,
+        product.purchaseDate,
+        product.createdAt,
+      ),
+      name: firstFilled(row.productName, row.name, product.name),
+      category: firstFilled(row.categoryName, row.category?.name, productCategoryLabel(product)),
+      colorSize: colorSizeLabel(row),
+      purchase: firstFilled(row.purchasePrice, row.purchase, row.costPrice, product.purchasePrice),
+      oldPrice: firstFilled(row.oldPrice, row.regularPrice, product.oldPrice),
+      price: firstFilled(row.newPrice, row.salePrice, row.price, productPrice(product)),
+      stock: firstFilled(row.stock, row.quantity, row.qty, product.stock),
+    }));
+  }
+
+  return [
+    {
+      id: product.Id || "product",
+      date: firstFilled(product.purchaseDate, product.createdAt),
+      name: product.name,
+      category: productCategoryLabel(product),
+      colorSize: "—",
+      purchase: firstFilled(product.purchasePrice, product.costPrice),
+      oldPrice: firstFilled(product.oldPrice, product.regularPrice),
+      price: productPrice(product),
+      stock: productStock(product),
+    },
+  ];
+}
+
 const PAGE_SIZES = [10, 20, 30, 50];
 
 export default function ProductManagePage({ onNavigate }) {
@@ -34,6 +174,10 @@ export default function ProductManagePage({ onNavigate }) {
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selected, setSelected] = useState([]);
+  const [historyProduct, setHistoryProduct] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
   const {
     data: products,
@@ -87,6 +231,49 @@ export default function ProductManagePage({ onNavigate }) {
     } catch (e) {
       alert(e.message || "Selected products delete করতে সমস্যা হয়েছে");
     }
+  }
+
+  async function openPurchaseHistory(product) {
+    setHistoryProduct(product);
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const response = await productService.getById(product.Id);
+      setHistoryProduct(response.data || product);
+    } catch (e) {
+      setHistoryError(e.message || "Purchase history load করতে সমস্যা হয়েছে");
+      setHistoryProduct(product);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function handleToggleStatus(product) {
+    const active = product.status === "active" || product.status === "Active";
+    const nextStatus = active ? "Inactive" : "Active";
+    setStatusUpdatingId(product.Id);
+    try {
+      await productService.update(product.Id, { status: nextStatus });
+      refetch();
+    } catch (e) {
+      alert(e.message || "Product status update করতে সমস্যা হয়েছে");
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  }
+
+  if (historyProduct) {
+    return (
+      <ProductPurchaseHistoryPage
+        product={historyProduct}
+        loading={historyLoading}
+        error={historyError}
+        onBack={() => {
+          setHistoryProduct(null);
+          setHistoryError("");
+        }}
+      />
+    );
   }
 
   return (
@@ -159,7 +346,7 @@ export default function ProductManagePage({ onNavigate }) {
         )}
         {!loading && !error && (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-[760px] text-xs">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="px-3 py-3 text-center w-10">
@@ -179,8 +366,11 @@ export default function ProductManagePage({ onNavigate }) {
                   <th className="px-3 py-3 text-left text-gray-500 font-semibold">
                     Name
                   </th>
-                  <th className="px-3 py-3 text-center text-gray-500 font-semibold">
-                    SKU
+                  <th className="px-3 py-3 text-left text-gray-500 font-semibold">
+                    Price
+                  </th>
+                  <th className="px-3 py-3 text-left text-gray-500 font-semibold">
+                    Stock
                   </th>
                   <th className="px-3 py-3 text-center text-gray-500 font-semibold">
                     Status
@@ -201,11 +391,14 @@ export default function ProductManagePage({ onNavigate }) {
                     onEdit={() =>
                       onNavigate && onNavigate("edit_product", product)
                     }
+                    onHistory={() => openPurchaseHistory(product)}
+                    onToggleStatus={() => handleToggleStatus(product)}
+                    statusUpdating={statusUpdatingId === product.Id}
                   />
                 ))}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-gray-400">
+                    <td colSpan={7} className="text-center py-12 text-gray-400">
                       কোনো পণ্য পাওয়া যায়নি
                     </td>
                   </tr>
@@ -263,8 +456,143 @@ export default function ProductManagePage({ onNavigate }) {
   );
 }
 
-function ProductRow({ product, checked, onToggle, onDelete, onEdit }) {
+function ProductPurchaseHistoryPage({ product, loading, error, onBack }) {
+  const rows = purchaseHistoryRows(product);
+  const totalStock = rows.reduce((sum, row) => {
+    const stock = Number(row.stock);
+    return Number.isFinite(stock) ? sum + stock : sum;
+  }, 0);
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-lg font-bold text-gray-800">
+          Product Purchase History
+        </h1>
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-700"
+        >
+          &lt; Back
+        </button>
+      </div>
+
+      <div className="bg-white p-5 shadow-sm">
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-sm text-gray-400">
+            <Loader2 size={18} className="mr-2 animate-spin" />
+            Loading purchase history...
+          </div>
+        ) : error ? (
+          <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+            {error}
+          </div>
+        ) : null}
+
+        {!loading && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-xs">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-100">
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    SL
+                  </th>
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    Date
+                  </th>
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    Name
+                  </th>
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    Category
+                  </th>
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    Color & Size
+                  </th>
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    Purchase
+                  </th>
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    Old Price
+                  </th>
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    Price
+                  </th>
+                  <th className="px-3 py-4 text-left font-bold text-gray-600">
+                    Stock
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => (
+                  <tr key={row.id} className="border-b border-gray-200">
+                    <td className="px-3 py-4 text-gray-600">{index + 1}</td>
+                    <td className="px-3 py-4 text-gray-600">
+                      {formatDate(row.date)}
+                    </td>
+                    <td className="px-3 py-4 text-gray-600">{row.name || "—"}</td>
+                    <td className="px-3 py-4 text-gray-600">
+                      {row.category || "—"}
+                    </td>
+                    <td className="px-3 py-4 text-gray-600">
+                      {row.colorSize || "—"}
+                    </td>
+                    <td className="px-3 py-4 text-gray-600">
+                      {formatNumberish(row.purchase)}
+                    </td>
+                    <td className="px-3 py-4 text-gray-600">
+                      {formatNumberish(row.oldPrice)}
+                    </td>
+                    <td className="px-3 py-4 text-gray-600">
+                      {formatNumberish(row.price)}
+                    </td>
+                    <td className="px-3 py-4 text-gray-600">
+                      {formatNumberish(row.stock)}
+                    </td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-gray-400">
+                      No purchase history found
+                    </td>
+                  </tr>
+                )}
+                <tr>
+                  <td colSpan={6} />
+                  <td className="border-t border-gray-200 px-3 py-4 font-bold text-gray-600">
+                    Total
+                  </td>
+                  <td className="border-t border-gray-200 px-3 py-4 font-bold text-gray-600">
+                    {formatNumberish(totalStock)} pcs
+                  </td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProductRow({
+  product,
+  checked,
+  onToggle,
+  onDelete,
+  onEdit,
+  onHistory,
+  onToggleStatus,
+  statusUpdating,
+}) {
   const active = product.status === "active" || product.status === "Active";
+  const price = productPrice(product);
+  const stock = productStock(product);
+  const category = productCategoryLabel(product);
+
   return (
     <tr
       className={`border-b border-gray-50 transition ${checked ? "bg-blue-50" : "hover:bg-gray-50/60"}`}
@@ -309,9 +637,19 @@ function ProductRow({ product, checked, onToggle, onDelete, onEdit }) {
             SKU: {product.sku}
           </div>
         )}
+        {category && (
+          <div className="mt-1">
+            <span className="inline-flex rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-indigo-600">
+              {category}
+            </span>
+          </div>
+        )}
       </td>
-      <td className="px-3 py-2.5 text-center text-gray-600">
-        {product.sku || "—"}
+      <td className="px-3 py-2.5 text-left font-medium text-gray-600">
+        {formatNumberish(price, " Tk")}
+      </td>
+      <td className="px-3 py-2.5 text-left font-medium text-gray-600">
+        {formatNumberish(stock)}
       </td>
       <td className="px-3 py-2.5 text-center">
         <span
@@ -339,18 +677,44 @@ function ProductRow({ product, checked, onToggle, onDelete, onEdit }) {
             title="Delete"
             onClick={onDelete}
           />
+          <ActionBtn
+            icon={
+              statusUpdating ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : active ? (
+                <ToggleRight size={14} />
+              ) : (
+                <ToggleLeft size={14} />
+              )
+            }
+            color={
+              active
+                ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
+                : "bg-amber-100 text-amber-600 hover:bg-amber-200"
+            }
+            title={active ? "Make Inactive" : "Make Active"}
+            onClick={onToggleStatus}
+            disabled={statusUpdating}
+          />
+          <ActionBtn
+            icon={<Archive size={12} />}
+            color="bg-sky-100 text-sky-500 hover:bg-sky-200"
+            title="Purchase History"
+            onClick={onHistory}
+          />
         </div>
       </td>
     </tr>
   );
 }
 
-function ActionBtn({ icon, color, title, onClick }) {
+function ActionBtn({ icon, color, title, onClick, disabled = false }) {
   return (
     <button
       title={title}
       onClick={onClick}
-      className={`w-6 h-6 rounded flex items-center justify-center transition ${color}`}
+      disabled={disabled}
+      className={`w-6 h-6 rounded flex items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-60 ${color}`}
     >
       {icon}
     </button>

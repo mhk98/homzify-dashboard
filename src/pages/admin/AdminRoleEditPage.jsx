@@ -134,7 +134,7 @@ export default function AdminRoleEditPage({ role, onSave, onNavigate }) {
           {loadingPermissions && (
             <div className="pb-4 text-xs font-semibold text-gray-400">Loading permissions...</div>
           )}
-          <div className="grid grid-cols-3 gap-x-6">
+          <div className="grid grid-cols-1 gap-x-6 md:grid-cols-3">
             {cols.map((col, ci) => (
               <div key={ci} className="space-y-0">
                 {col.map((perm) => (

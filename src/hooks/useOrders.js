@@ -10,7 +10,7 @@ function normalizeStatusCounts(counts = {}) {
   }, {});
 }
 
-export function useOrders({ status, search, fromDate, toDate, page, limit = 20 }) {
+export function useOrders({ status, search, fromDate, toDate, assignedEmployeeId, page, limit = 20 }) {
   const [orders, setOrders] = useState([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, limit: 20 });
   const [loading, setLoading] = useState(false);
@@ -30,6 +30,7 @@ export function useOrders({ status, search, fromDate, toDate, page, limit = 20 }
         search: search || undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
+        assignedEmployeeId: assignedEmployeeId && assignedEmployeeId !== "all" ? assignedEmployeeId : undefined,
         page: page || 1,
         limit,
         sortBy: "Id",
@@ -42,7 +43,7 @@ export function useOrders({ status, search, fromDate, toDate, page, limit = 20 }
     } finally {
       setLoading(false);
     }
-  }, [status, search, fromDate, toDate, page, limit]);
+  }, [status, search, fromDate, toDate, assignedEmployeeId, page, limit]);
 
   useEffect(() => {
     fetchOrders();

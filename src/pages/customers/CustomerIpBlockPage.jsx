@@ -83,6 +83,13 @@ export default function CustomerIpBlockPage() {
 
   const totalPages = meta?.totalPage ?? Math.max(1, Math.ceil((meta?.count ?? 0) / limit));
 
+  function formatExpiresAt(value) {
+    if (!value) return 'Permanent';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString();
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
       <h1 className="text-lg font-bold text-gray-800">IP Block Manage</h1>
@@ -129,10 +136,10 @@ export default function CustomerIpBlockPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                {[{ key: null, label: 'SL' }, { key: 'ip', label: 'IP' }, { key: 'reason', label: 'Reason' }, { key: null, label: 'Action' }]
+                {[{ key: null, label: 'SL' }, { key: 'ip', label: 'IP' }, { key: 'reason', label: 'Reason' }, { key: 'expiresAt', label: 'Expires' }, { key: null, label: 'Action' }]
                   .map(({ key, label }) => (
                     <th key={label} onClick={key ? () => toggleSort(key) : undefined}
                       className={`px-4 py-3 text-left text-gray-500 font-semibold select-none ${key ? 'cursor-pointer hover:text-gray-700' : ''}`}>
@@ -150,16 +157,17 @@ export default function CustomerIpBlockPage() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={4} className="text-center py-10 text-gray-400">Loading...</td></tr>}
-              {!loading && error && <tr><td colSpan={4} className="text-center py-10 text-red-400">{error}</td></tr>}
+              {loading && <tr><td colSpan={5} className="text-center py-10 text-gray-400">Loading...</td></tr>}
+              {!loading && error && <tr><td colSpan={5} className="text-center py-10 text-red-400">{error}</td></tr>}
               {!loading && !error && sorted.length === 0 && (
-                <tr><td colSpan={4} className="text-center py-10 text-gray-400">No blocked IPs found</td></tr>
+                <tr><td colSpan={5} className="text-center py-10 text-gray-400">No blocked IPs found</td></tr>
               )}
               {!loading && sorted.map((b, i) => (
                 <tr key={b.Id} className="border-b border-gray-50 hover:bg-gray-50/60 transition">
                   <td className="px-4 py-3 text-gray-500">{(page - 1) * limit + i + 1}</td>
                   <td className="px-4 py-3 font-mono text-gray-800">{b.ip}</td>
                   <td className="px-4 py-3 text-gray-600">{b.reason || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{formatExpiresAt(b.expiresAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <button type="button" title="Edit" onClick={() => setEditTarget({ ...b })}

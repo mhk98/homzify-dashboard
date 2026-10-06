@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useBrands } from '../../hooks/useProducts';
 import { brandService } from '../../services/productService';
 import { imageUrl } from '../../utils/assetUrl';
 
 export default function BrandsPage({ onNavigate, onEditBrand }) {
   const [search, setSearch] = useState('');
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
   const { data: brands, meta, loading, error, refetch } = useBrands({ searchTerm: search, limit: 100 });
 
   async function handleDelete(id) {
@@ -15,6 +16,24 @@ export default function BrandsPage({ onNavigate, onEditBrand }) {
       refetch();
     } catch (e) {
       alert(e.message);
+    }
+  }
+
+  async function handleToggleStatus(brand) {
+    const active = brand.status === 'Active' || brand.status === 'active';
+    const nextStatus = active ? 'Inactive' : 'Active';
+    setStatusUpdatingId(brand.Id);
+    try {
+      await brandService.update(brand.Id, {
+        name: brand.name,
+        logo: brand.logo || null,
+        status: nextStatus,
+      });
+      refetch();
+    } catch (e) {
+      alert(e.message || 'Brand status update করতে সমস্যা হয়েছে');
+    } finally {
+      setStatusUpdatingId(null);
     }
   }
 
@@ -30,7 +49,7 @@ export default function BrandsPage({ onNavigate, onEditBrand }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)' }}>
           <span className="text-white font-semibold text-sm">All Brands ({meta?.count ?? brands.length})</span>
           <input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="text-xs px-3 py-1.5 rounded-lg border-0 focus:outline-none w-36" />
@@ -38,7 +57,7 @@ export default function BrandsPage({ onNavigate, onEditBrand }) {
         {loading && <div className="text-center py-8 text-gray-400 text-xs">Loading...</div>}
         {error && <div className="text-center py-8 text-red-400 text-xs">{error}</div>}
         {!loading && !error && (
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 {['#', 'Logo', 'Brand Name', 'Status', 'Action'].map((h) => (
@@ -70,6 +89,11 @@ export default function BrandsPage({ onNavigate, onEditBrand }) {
                     <div className="flex gap-1">
                       <button onClick={() => onEditBrand && onEditBrand(brand)} className="w-6 h-6 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center"><Edit2 size={12} /></button>
                       <button onClick={() => handleDelete(brand.Id)} className="w-6 h-6 rounded bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center"><Trash2 size={12} /></button>
+                      <StatusToggleBtn
+                        active={brand.status === 'Active' || brand.status === 'active'}
+                        loading={statusUpdatingId === brand.Id}
+                        onClick={() => handleToggleStatus(brand)}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -88,5 +112,19 @@ function StatusBadge({ status }) {
     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
       {active ? 'Active' : 'Inactive'}
     </span>
+  );
+}
+
+function StatusToggleBtn({ active, loading, onClick }) {
+  return (
+    <button
+      type="button"
+      title={active ? 'Make Inactive' : 'Make Active'}
+      onClick={onClick}
+      disabled={loading}
+      className={`w-6 h-6 rounded flex items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-60 ${active ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`}
+    >
+      {loading ? <Loader2 size={12} className="animate-spin" /> : active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+    </button>
   );
 }

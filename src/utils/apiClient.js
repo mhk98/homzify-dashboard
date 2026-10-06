@@ -1,13 +1,32 @@
 const BASE = import.meta.env.VITE_API_URL || "/api/v1";
 
 const STORAGE_KEYS = {
-  access: "homzify_access",
-  refresh: "homzify_refresh",
+  access: "holydeen_access",
+  refresh: "holydeen_refresh",
 };
 
 export const USER_STORAGE_KEYS = {
-  current: "homzify_user",
+  current: "holydeen_user",
 };
+
+function mergeStoredUser(data = {}) {
+  const user = data.user;
+  const menuPermissions = data.menuPermissions;
+  if (!user && !Array.isArray(menuPermissions)) return;
+
+  try {
+    const current = JSON.parse(localStorage.getItem(USER_STORAGE_KEYS.current) || "null");
+    const baseUser = user || current;
+    if (!baseUser) return;
+    const nextUser = Array.isArray(menuPermissions)
+      ? { ...baseUser, menuPermissions }
+      : { ...baseUser };
+    localStorage.setItem(USER_STORAGE_KEYS.current, JSON.stringify(nextUser));
+    window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: nextUser }));
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 export function getAccessToken() {
   return localStorage.getItem(STORAGE_KEYS.access);
@@ -70,6 +89,7 @@ async function doRefresh() {
   const newAccess = json.data?.accessToken;
   const newRefresh = json.data?.refreshToken;
   setTokens(newAccess, newRefresh);
+  mergeStoredUser(json.data);
   return newAccess;
 }
 

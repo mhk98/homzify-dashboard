@@ -35,7 +35,8 @@ export default function StockAlert({ onViewAll }) {
           View All
         </button>
       </div>
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-sm">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-100">
             <th className="text-left px-4 py-2.5 text-gray-500 font-medium text-xs">
@@ -112,6 +113,7 @@ export default function StockAlert({ onViewAll }) {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

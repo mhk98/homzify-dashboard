@@ -50,7 +50,7 @@ export default function ColorEditPage({ color, onNavigate }) {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Color Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Color Name *</label>

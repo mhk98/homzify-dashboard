@@ -147,7 +147,7 @@ export default function LandingPageHeaderPage() {
             <LogoField value={form.logoUrl} onChange={(value) => set('logoUrl', value)} />
             <div className="space-y-4">
               <Field label="Logo Alt Text" value={form.logoAlt} onChange={(value) => set('logoAlt', value)} />
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Field type="color" label="Background" value={form.backgroundColor} onChange={(value) => set('backgroundColor', value)} />
                 <Field type="color" label="Text" value={form.textColor} onChange={(value) => set('textColor', value)} />
                 <Field type="color" label="Accent" value={form.accentColor} onChange={(value) => set('accentColor', value)} />

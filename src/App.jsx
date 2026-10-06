@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./index.css";
 import { useAuth } from "./context/AuthContext";
 import LoginPage from "./pages/auth/LoginPage";
@@ -51,12 +51,14 @@ import CustomerViewPage from "./pages/customers/CustomerViewPage";
 import CustomerLoginAsPage from "./pages/customers/CustomerLoginAsPage";
 import CustomerIpBlockPage from "./pages/customers/CustomerIpBlockPage";
 import LandingPageCreatePage from "./pages/landing/LandingPageCreatePage";
+import LandingPageRegularPage from "./pages/landing/LandingPageRegularPage";
 import LandingPageManagePage from "./pages/landing/LandingPageManagePage";
 import LandingPageViewPage from "./pages/landing/LandingPageViewPage";
 import LandingPageHeaderPage from "./pages/landing/LandingPageHeaderPage";
 import LandingPageFooterPage from "./pages/landing/LandingPageFooterPage";
 import { landingPageService } from "./services/landingPageService";
 import WebsiteGeneralSettingPage from "./pages/website/WebsiteGeneralSettingPage";
+import WebsiteOrderBlockPage from "./pages/website/WebsiteOrderBlockPage";
 import WebsiteFooterPage from "./pages/website/WebsiteFooterPage";
 import WebsiteSocialMediaPage from "./pages/website/WebsiteSocialMediaPage";
 import WebsiteContactPage from "./pages/website/WebsiteContactPage";
@@ -99,6 +101,7 @@ import ExpensePage from "./pages/expense/ExpensePage";
 import ExpenseFormPage from "./pages/expense/ExpenseFormPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import { expenseService } from "./services/reportService";
+import { orderService } from "./services/orderService";
 import { siteSettingService } from "./services/websiteService";
 import {
   applyDocumentFavicon,
@@ -108,6 +111,11 @@ import {
   normalizeSettingData,
 } from "./utils/siteBranding";
 import { imageUrl } from "./utils/assetUrl";
+import {
+  getPermissionSet,
+  isNavigationAllowed,
+  normalizeNavigationForPermissions,
+} from "./utils/permissions";
 
 function getDirectLandingPageId() {
   if (typeof window === "undefined") return "";
@@ -118,7 +126,7 @@ function getDirectLandingPageId() {
   return match?.[1] || "";
 }
 
-const DASHBOARD_NAV_STORAGE_KEY = "homzify-dashboard:navigation";
+const DASHBOARD_NAV_STORAGE_KEY = "holydeen-dashboard:navigation";
 
 const DEFAULT_NAVIGATION = {
   activePage: "dashboard",
@@ -126,7 +134,7 @@ const DEFAULT_NAVIGATION = {
   activeProductPage: "product_manage",
   activeSupplierPage: "supplier_list",
   activePurchasePage: "purchase_list",
-  activeLandingPage: "landing_create",
+  activeLandingPage: "landing_manage",
   activeAdminPage: "admin_user",
   activeCustomersPage: "customer_list",
   activeWebsitePage: "general_setting",
@@ -225,6 +233,291 @@ const TRANSIENT_SUBPAGE_FALLBACKS = {
   },
 };
 
+
+const PRODUCT_CREATE_ROUTES = {
+  create_product: "/products/create",
+  create_category: "/products/categories/create",
+  create_subcategory: "/products/subcategories/create",
+  create_childcategory: "/products/childcategories/create",
+  create_brand: "/products/brands/create",
+  create_color: "/products/colors/create",
+  create_attribute: "/products/attribute/create",
+  create_review: "/products/reviews/create",
+};
+
+const PRODUCT_CREATE_ROUTE_PAGES = Object.fromEntries(
+  Object.entries(PRODUCT_CREATE_ROUTES).map(([page, route]) => [route, page]),
+);
+
+const NAVIGATION_ROUTE_GROUPS = {
+  products: {
+    activePage: "products",
+    stateKey: "activeProductPage",
+    basePath: "/products",
+    defaultKey: "product_manage",
+    routes: {
+      product_manage: "manage",
+      categories: "categories",
+      subcategories: "subcategories",
+      childcategories: "childcategories",
+      brands: "brands",
+      colors: "colors",
+      attribute: "attribute",
+      barcode: "barcode",
+      reviews: "reviews",
+    },
+  },
+  supplier: {
+    activePage: "supplier",
+    stateKey: "activeSupplierPage",
+    basePath: "/supplier",
+    defaultKey: "supplier_list",
+    routes: {
+      supplier_list: "list",
+      supplier_add: "create",
+      payment_list: "payment-list",
+      payment_add: "payment-add",
+    },
+  },
+  purchase: {
+    activePage: "purchase",
+    stateKey: "activePurchasePage",
+    basePath: "/purchase",
+    defaultKey: "purchase_list",
+    routes: {
+      purchase_list: "list",
+      purchase_add: "add",
+    },
+  },
+  landing: {
+    activePage: "landing",
+    stateKey: "activeLandingPage",
+    basePath: "/landing",
+    defaultKey: "landing_manage",
+    routes: {
+      landing_create: "create",
+      landing_regular: "regular",
+      landing_manage: "manage",
+      landing_header: "header",
+      landing_footer: "footer",
+    },
+  },
+  admin: {
+    activePage: "admin",
+    stateKey: "activeAdminPage",
+    basePath: "/admin",
+    defaultKey: "admin_user",
+    routes: {
+      admin_user: "users",
+      admin_roles: "roles",
+      admin_permissions: "permissions",
+    },
+  },
+  customers: {
+    activePage: "customers",
+    stateKey: "activeCustomersPage",
+    basePath: "/customers",
+    defaultKey: "customer_list",
+    routes: {
+      customer_list: "list",
+      ip_block: "ip-block",
+    },
+  },
+  website: {
+    activePage: "website",
+    stateKey: "activeWebsitePage",
+    basePath: "/website",
+    defaultKey: "general_setting",
+    routes: {
+      general_setting: "general-setting",
+      order_block: "order-block",
+      website_footer: "footer",
+      social_media: "social-media",
+      contact: "contact",
+      shipping_charge: "shipping-charge",
+      order_status: "order-status",
+      create_page: "pages",
+    },
+  },
+  api: {
+    activePage: "api",
+    stateKey: "activeApiPage",
+    basePath: "/api",
+    defaultKey: "courier_api",
+    routes: {
+      courier_api: "courier",
+      payment_gateway: "payment-gateway",
+      sms_gateway: "sms-gateway",
+      fraud_checker_api: "fraud-checker",
+    },
+  },
+  marketing: {
+    activePage: "marketing",
+    stateKey: "activeMarketingPage",
+    basePath: "/marketing",
+    defaultKey: "tag_manager",
+    routes: {
+      tag_manager: "tag-manager",
+      tag_manager_create: "tag-manager/create",
+      facebook_pixels: "facebook-pixels",
+      facebook_pixels_create: "facebook-pixels/create",
+      tiktok_pixels: "tiktok-pixels",
+      tiktok_pixels_create: "tiktok-pixels/create",
+      google_ads: "google-ads",
+      google_ads_create: "google-ads/create",
+      coupon_code: "coupon-code",
+      coupon_code_create: "coupon-code/create",
+      sms_marketing: "sms-marketing",
+      facebook_catalogue: "facebook-catalogue",
+      visitor_reports: "visitor-reports",
+    },
+  },
+  blogs: {
+    activePage: "blogs",
+    stateKey: "activeBlogsPage",
+    basePath: "/blogs",
+    defaultKey: "blog",
+    routes: {
+      blog: "",
+      blog_create: "create",
+    },
+  },
+  banner: {
+    activePage: "banner",
+    stateKey: "activeBannerPage",
+    basePath: "/banner",
+    defaultKey: "banner_category",
+    routes: {
+      banner_category: "category",
+      banner_category_create: "category/create",
+      banner_ads: "ads",
+      banner_ads_create: "ads/create",
+    },
+  },
+  expense: {
+    activePage: "expense",
+    stateKey: "activeExpensePage",
+    basePath: "/expense",
+    defaultKey: "expense_categories",
+    routes: {
+      expense_categories: "categories",
+      expense_category_create: "categories/create",
+      expense: "list",
+      expense_create: "create",
+    },
+  },
+  reports: {
+    activePage: "reports",
+    stateKey: "activeReportsPage",
+    basePath: "/reports",
+    defaultKey: "stock_report",
+    routes: {
+      stock_report: "stock",
+      stock_alert_report: "stock-alert",
+      purchase_report: "purchase",
+      order_reports: "orders",
+      sales_reports: "sales",
+      expense_reports: "expense",
+      loss_profit: "loss-profit",
+    },
+  },
+};
+
+const GROUPS_BY_BASE_SEGMENT = Object.values(NAVIGATION_ROUTE_GROUPS).reduce(
+  (acc, group) => {
+    acc[group.basePath.replace(/^\//, "")] = group;
+    return acc;
+  },
+  {},
+);
+
+function normalizeRoutePath(pathname = "") {
+  const path = `/${String(pathname).split("?")[0].split("#")[0]}`
+    .replace(/\/{2,}/g, "/")
+    .replace(/\/$/, "");
+  return path === "" ? "/" : path;
+}
+
+function segmentToKey(segment = "") {
+  return decodeURIComponent(segment).replace(/-/g, "_");
+}
+
+function keyToSegment(key = "") {
+  return encodeURIComponent(String(key).replace(/_/g, "-"));
+}
+
+function getRouteKeyFromGroup(group, pathTail) {
+  const normalizedTail = pathTail.replace(/^\//, "").replace(/\/$/, "");
+  const found = Object.entries(group.routes).find(
+    ([, segment]) => segment === normalizedTail,
+  );
+  return found?.[0] || group.defaultKey;
+}
+
+function getNavigationStateFromPath(pathname) {
+  const path = normalizeRoutePath(pathname);
+  if (path === "/" || path === "/dashboard") return DEFAULT_NAVIGATION;
+  if (PRODUCT_CREATE_ROUTE_PAGES[path]) {
+    return normalizeNavigationState({ activePage: PRODUCT_CREATE_ROUTE_PAGES[path] });
+  }
+  if (path === "/orders/create") {
+    return normalizeNavigationState({ activePage: "create_order" });
+  }
+  if (path === "/orders") {
+    return normalizeNavigationState({ activePage: "orders", activeOrderStatus: "all" });
+  }
+  if (path.startsWith("/orders/")) {
+    const status = segmentToKey(path.replace(/^\/orders\//, "")) || "all";
+    return normalizeNavigationState({ activePage: "orders", activeOrderStatus: status });
+  }
+
+  const [, baseSegment, ...rest] = path.split("/");
+  const group = GROUPS_BY_BASE_SEGMENT[baseSegment];
+  if (!group) return null;
+  const routeKey = getRouteKeyFromGroup(group, rest.join("/"));
+  return normalizeNavigationState({
+    activePage: group.activePage,
+    [group.stateKey]: routeKey,
+  });
+}
+
+function getPathFromNavigationState(state = {}) {
+  const nav = normalizeNavigationState(state);
+  if (PRODUCT_CREATE_ROUTES[nav.activePage]) return PRODUCT_CREATE_ROUTES[nav.activePage];
+  if (nav.activePage === "dashboard") return "/";
+  if (nav.activePage === "create_order") return "/orders/create";
+  if (nav.activePage === "orders") {
+    return nav.activeOrderStatus && nav.activeOrderStatus !== "all"
+      ? `/orders/${keyToSegment(nav.activeOrderStatus)}`
+      : "/orders";
+  }
+
+  const group = Object.values(NAVIGATION_ROUTE_GROUPS).find(
+    (item) => item.activePage === nav.activePage,
+  );
+  if (!group) return "/";
+  const segment = group.routes[nav[group.stateKey]] ?? group.routes[group.defaultKey] ?? "";
+  return segment ? `${group.basePath}/${segment}` : group.basePath;
+}
+
+function isRegularLandingPage(campaign) {
+  const pageType = String(campaign?.pageType || "")
+    .trim()
+    .toLowerCase();
+  const template = String(
+    campaign?.template || campaign?.campaignTemplate || "",
+  )
+    .trim()
+    .toLowerCase();
+  const regularData =
+    campaign?.regularData &&
+    String(campaign.regularData).trim() &&
+    String(campaign.regularData).trim() !== "{}";
+  return (
+    pageType === "regular" || template === "regular" || Boolean(regularData)
+  );
+}
+
 function normalizeNavigationState(state = {}) {
   const fallback = TRANSIENT_PAGE_FALLBACKS[state.activePage] || {};
   const next = { ...DEFAULT_NAVIGATION, ...state, ...fallback };
@@ -290,7 +583,10 @@ function getNavigationStateFromUrl(url) {
       return getNavigationStateFromHash(value.slice(1));
     const parsed = new URL(value, window.location.origin);
     if (parsed.origin !== window.location.origin) return null;
-    return getNavigationStateFromHash(parsed.hash.replace(/^#/, ""));
+    return (
+      getNavigationStateFromPath(parsed.pathname) ||
+      getNavigationStateFromHash(parsed.hash.replace(/^#/, ""))
+    );
   } catch {
     return null;
   }
@@ -311,7 +607,10 @@ function getStoredNavigationState() {
 function getInitialNavigationState() {
   if (getDirectLandingPageId()) return DEFAULT_NAVIGATION;
   return (
-    getHashNavigationState() || getStoredNavigationState() || DEFAULT_NAVIGATION
+    getNavigationStateFromPath(window.location.pathname) ||
+    getHashNavigationState() ||
+    getStoredNavigationState() ||
+    DEFAULT_NAVIGATION
   );
 }
 
@@ -324,8 +623,11 @@ function writeNavigationState(state) {
     // Ignore storage failures.
   }
 
-  // Do not update the browser URL for every navigation change.
-  // This keeps the address bar clean and avoids long hash strings.
+  const nextPath = getPathFromNavigationState(normalized);
+  const currentPath = normalizeRoutePath(window.location.pathname);
+  if (nextPath && currentPath !== nextPath) {
+    window.history.pushState({ navigation: normalized }, "", nextPath);
+  }
 }
 
 function normalizeBannerCategory(item) {
@@ -392,7 +694,7 @@ async function fetchBannerState() {
 }
 
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const directLandingPageId = getDirectLandingPageId();
   const initialNavigation = getInitialNavigationState();
 
@@ -444,11 +746,13 @@ function App() {
   const [activeReportsPage, setActiveReportsPage] = useState(
     initialNavigation.activeReportsPage,
   );
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [siteSettings, setSiteSettings] = useState(null);
   const { data: suppliers } = useSupplierAllList();
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [invoiceAutoPrint, setInvoiceAutoPrint] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
@@ -516,7 +820,7 @@ function App() {
       id: 2,
       title: "এ আঘা খাবার ৪টি কারণ",
       imageName: "",
-      imageText: "Homzify",
+      imageText: "Holy Deen",
       imageColor: "linear-gradient(135deg, #0f172a, #4b6b8a)",
       description: "",
       status: false,
@@ -525,7 +829,7 @@ function App() {
   const [selectedBlog, setSelectedBlog] = useState(null);
   const [bannerCategories, setBannerCategories] = useState([
     { id: 1, name: "Nazmul Hasan", status: true },
-    { id: 2, name: "Welcome to Sellpixer", status: true },
+    { id: 2, name: "Welcome to Holy Deen", status: true },
   ]);
   const [selectedBannerCategory, setSelectedBannerCategory] = useState(null);
   const [banners, setBanners] = useState([]);
@@ -539,6 +843,27 @@ function App() {
     Boolean(directLandingPageId),
   );
   const [directCampaignError, setDirectCampaignError] = useState("");
+  const permissionSet = useMemo(
+    () => getPermissionSet(user),
+    [user?.Id, user?.role, JSON.stringify(user?.menuPermissions || [])],
+  );
+  const currentNavigationState = {
+    activePage,
+    activeOrderStatus,
+    activeProductPage,
+    activeSupplierPage,
+    activePurchasePage,
+    activeLandingPage,
+    activeAdminPage,
+    activeCustomersPage,
+    activeWebsitePage,
+    activeApiPage,
+    activeMarketingPage,
+    activeBlogsPage,
+    activeBannerPage,
+    activeExpensePage,
+    activeReportsPage,
+  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -604,6 +929,19 @@ function App() {
   ]);
 
   useEffect(() => {
+    if (directLandingPageId) return undefined;
+    const handlePopState = () => {
+      const next =
+        getNavigationStateFromPath(window.location.pathname) ||
+        getHashNavigationState() ||
+        DEFAULT_NAVIGATION;
+      applyNavigationState(next);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [directLandingPageId]);
+
+  useEffect(() => {
     if (!isAuthenticated) return undefined;
     let active = true;
     const applySettings = (data) => {
@@ -647,19 +985,21 @@ function App() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!directLandingPageId || !isAuthenticated) return undefined;
+    if (!directLandingPageId) return undefined;
     let active = true;
     setDirectCampaignLoading(true);
     setDirectCampaignError("");
     landingPageService
-      .getOne(directLandingPageId)
+      .getPublicOne(directLandingPageId)
       .then((res) => {
         if (!active) return;
         setDirectCampaign(res.data || null);
       })
       .catch((err) => {
         if (!active) return;
-        setDirectCampaignError(err.message || "Landing page fetch failed.");
+        setDirectCampaignError(
+          err.message || "Landing page not found or inactive.",
+        );
       })
       .finally(() => {
         if (active) setDirectCampaignLoading(false);
@@ -667,7 +1007,38 @@ function App() {
     return () => {
       active = false;
     };
-  }, [directLandingPageId, isAuthenticated]);
+  }, [directLandingPageId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || directLandingPageId) return;
+    const next = normalizeNavigationForPermissions(
+      currentNavigationState,
+      permissionSet,
+    );
+    const changed = Object.keys(next).some(
+      (key) => next[key] !== currentNavigationState[key],
+    );
+    if (changed) applyNavigationState({ ...currentNavigationState, ...next });
+  }, [
+    isAuthenticated,
+    directLandingPageId,
+    permissionSet,
+    activePage,
+    activeOrderStatus,
+    activeProductPage,
+    activeSupplierPage,
+    activePurchasePage,
+    activeLandingPage,
+    activeAdminPage,
+    activeCustomersPage,
+    activeWebsitePage,
+    activeApiPage,
+    activeMarketingPage,
+    activeBlogsPage,
+    activeBannerPage,
+    activeExpensePage,
+    activeReportsPage,
+  ]);
 
   // Auth guards — placed after all hook calls to satisfy Rules of Hooks
   if (isLoading) {
@@ -697,10 +1068,6 @@ function App() {
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return <LoginPage />;
   }
 
   if (directLandingPageId) {
@@ -739,6 +1106,10 @@ function App() {
         />
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
   }
 
   function goProducts(page) {
@@ -1068,18 +1439,63 @@ function App() {
     return true;
   }
 
-  if (activePage === "invoice" && selectedOrder) {
+  async function handleViewOrder(order) {
+    setSelectedOrder(order);
+    setInvoiceAutoPrint(false);
+    setActivePage("invoice");
+    try {
+      const response = await orderService.getOrderById(order.Id);
+      setSelectedOrder(response.data || order);
+    } catch {
+      setSelectedOrder(order);
+    }
+  }
+
+  async function openEditOrder(order) {
+    setSelectedOrder(order);
+    setInvoiceAutoPrint(false);
+    setActivePage("edit_order");
+    try {
+      const response = await orderService.getOrderById(order.Id);
+      setSelectedOrder(response.data || order);
+    } catch {
+      setSelectedOrder(order);
+    }
+  }
+
+  async function handlePrintOrder(order) {
+    if (!order?.Id) return;
+    setSelectedOrder(order);
+    setInvoiceAutoPrint(true);
+    setActivePage("invoice");
+    try {
+      const response = await orderService.getOrderById(order.Id);
+      setSelectedOrder(response.data || order);
+    } catch {
+      setSelectedOrder(order);
+    }
+  }
+
+  if (
+    activePage === "invoice" &&
+    selectedOrder &&
+    isNavigationAllowed(currentNavigationState, permissionSet)
+  ) {
     return (
-      <div className="flex h-screen overflow-hidden bg-gray-100">
-        <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex min-h-screen bg-gray-100">
+        <div className="flex min-w-0 flex-1 flex-col">
           <TopNav
             siteSettings={siteSettings}
             onQuickNavigate={handleQuickNavigate}
             onNotificationNavigate={handleNotificationNavigate}
+            onMenuClick={() => setSidebarOpen(true)}
           />
           <InvoicePage
             order={selectedOrder}
+            siteSettings={siteSettings}
+            autoPrint={invoiceAutoPrint}
             onBack={() => {
+              setInvoiceAutoPrint(false);
               setActivePage("orders");
               setSelectedOrder(null);
             }}
@@ -1090,6 +1506,45 @@ function App() {
   }
 
   function renderMain() {
+    if (!isNavigationAllowed(currentNavigationState, permissionSet)) {
+      const next = normalizeNavigationForPermissions(
+        currentNavigationState,
+        permissionSet,
+      );
+      const hasAllowedFallback =
+        Object.keys(next).some(
+          (key) => next[key] !== currentNavigationState[key],
+        ) &&
+        isNavigationAllowed(
+          { ...currentNavigationState, ...next },
+          permissionSet,
+        );
+
+      if (hasAllowedFallback) {
+        return (
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm">
+              <h1 className="text-lg font-bold text-gray-800">
+                Loading permissions...
+              </h1>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex h-full items-center justify-center p-6">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm">
+            <h1 className="text-lg font-bold text-gray-800">
+              No menu permission
+            </h1>
+            <p className="mt-2 text-sm text-gray-500">
+              এই role-এর জন্য কোনো menu permission দেওয়া হয়নি।
+            </p>
+          </div>
+        </div>
+      );
+    }
     if (activePage === "create_order") {
       return (
         <CreateOrderPage
@@ -1105,6 +1560,7 @@ function App() {
         <EditOrderPage
           order={selectedOrder}
           onCountsRefresh={refetchOrderCounts}
+          onPrintOrder={() => handlePrintOrder(selectedOrder)}
           onNavigate={(page) => {
             setActivePage(page);
             setSelectedOrder(null);
@@ -1120,14 +1576,15 @@ function App() {
           activeStatus={activeOrderStatus}
           onStatusChange={setActiveOrderStatus}
           onCreateOrder={() => setActivePage("create_order")}
-          onViewOrder={(order) => {
-            setSelectedOrder(order);
-            setActivePage("invoice");
+          onViewOrder={handleViewOrder}
+          onEditOrder={openEditOrder}
+          onPrintOrder={handlePrintOrder}
+          onViewCustomer={(order) => {
+            setSelectedCustomer(order);
+            setActivePage("customers");
+            setActiveCustomersPage("customer_view");
           }}
-          onEditOrder={(order) => {
-            setSelectedOrder(order);
-            setActivePage("edit_order");
-          }}
+          siteSettings={siteSettings}
           statusCounts={orderCounts}
           onCountsRefresh={refetchOrderCounts}
         />
@@ -1437,7 +1894,24 @@ function App() {
       if (activeLandingPage === "landing_create") {
         return <LandingPageCreatePage onNavigate={goLanding} />;
       }
+      if (activeLandingPage === "landing_regular") {
+        return <LandingPageRegularPage onNavigate={goLanding} />;
+      }
       if (activeLandingPage === "landing_edit" && selectedCampaign) {
+        if (isRegularLandingPage(selectedCampaign)) {
+          return (
+            <LandingPageRegularPage
+              key={selectedCampaign.Id}
+              mode="edit"
+              campaign={selectedCampaign}
+              onSave={() => setSelectedCampaign(null)}
+              onNavigate={(page) => {
+                setSelectedCampaign(null);
+                goLanding(page || "landing_manage");
+              }}
+            />
+          );
+        }
         return (
           <LandingPageCreatePage
             key={selectedCampaign.Id}
@@ -1462,8 +1936,11 @@ function App() {
               )
             }
             onEditCampaign={(c) => {
-              setSelectedCampaign(c);
-              setActiveLandingPage("landing_edit");
+              landingPageService
+                .getOne(c.Id)
+                .then((res) => setSelectedCampaign(res.data || c))
+                .catch(() => setSelectedCampaign(c))
+                .finally(() => setActiveLandingPage("landing_edit"));
             }}
           />
         );
@@ -1478,6 +1955,7 @@ function App() {
         return (
           <LandingPageViewPage
             campaign={selectedCampaign}
+            trackingEnabled={false}
             onBack={() => {
               setSelectedCampaign(null);
               setActiveLandingPage("landing_manage");
@@ -1647,6 +2125,7 @@ function App() {
     if (activePage === "website") {
       if (activeWebsitePage === "general_setting")
         return <WebsiteGeneralSettingPage />;
+      if (activeWebsitePage === "order_block") return <WebsiteOrderBlockPage />;
       if (activeWebsitePage === "website_footer") return <WebsiteFooterPage />;
       if (activeWebsitePage === "social_media")
         return <WebsiteSocialMediaPage />;
@@ -2235,6 +2714,14 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-slate-900/45 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close sidebar"
+        />
+      )}
       <Sidebar
         activePage={activePage}
         onNavigate={setActivePage}
@@ -2268,12 +2755,15 @@ function App() {
         activeReportsPage={activeReportsPage}
         onReportsPageChange={setActiveReportsPage}
         siteSettings={siteSettings}
+        mobileOpen={sidebarOpen}
+        onMobileClose={() => setSidebarOpen(false)}
       />
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopNav
           siteSettings={siteSettings}
           onQuickNavigate={handleQuickNavigate}
           onNotificationNavigate={handleNotificationNavigate}
+          onMenuClick={() => setSidebarOpen(true)}
         />
         {renderMain()}
       </div>

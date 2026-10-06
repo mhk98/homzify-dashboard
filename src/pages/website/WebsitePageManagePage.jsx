@@ -83,7 +83,7 @@ export default function WebsitePageManagePage({ onEdit, onCreate }) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 {[{ key: null, label: 'SL' }, { key: 'name', label: 'Name' }, { key: 'title', label: 'Title' }, { key: 'status', label: 'Status' }, { key: null, label: 'Action' }]

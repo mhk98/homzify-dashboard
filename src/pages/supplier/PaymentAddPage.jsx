@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useSupplierAllList } from '../../hooks/useSuppliers';
 import { supplierHistoryService } from '../../services/supplierService';
 
+const PAYMENT_METHODS = ['Cash', 'Bkash', 'Nagad', 'Rocket', 'Bank Transfer', 'Cheque', 'Other'];
+
 function todayDateOnly() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -10,10 +12,16 @@ export default function PaymentAddPage({ mode = 'create', payment, onSave, onNav
   const { data: suppliers, loading: suppliersLoading } = useSupplierAllList();
 
   const [form, setForm] = useState({
+    paymentTitle: payment?.paymentTitle ?? '',
     supplierId: payment?.supplierId ?? '',
     amount: payment?.amount ?? '',
+    due: payment?.due ?? '',
+    method: payment?.method ?? '',
     status: payment?.status ?? 'Paid',
     date: payment?.date ?? todayDateOnly(),
+    sender: payment?.sender ?? '',
+    transactionId: payment?.transactionId ?? '',
+    description: payment?.description ?? '',
     file: payment?.file ?? '',
   });
   const [saving, setSaving] = useState(false);
@@ -24,18 +32,25 @@ export default function PaymentAddPage({ mode = 'create', payment, onSave, onNav
   }
 
   const selectedSupplier = suppliers.find((s) => String(s.Id) === String(form.supplierId));
+  const dueValue = form.due !== '' ? form.due : selectedSupplier?.netBalance ?? '';
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.supplierId || !form.amount) return;
+    if (!form.paymentTitle || !form.supplierId || !form.amount || !form.method || !form.date) return;
     setSaving(true);
     setError('');
     try {
       const payload = {
+        paymentTitle: form.paymentTitle.trim(),
         supplierId: Number(form.supplierId),
         amount: Number(form.amount),
+        due: dueValue === '' ? undefined : Number(dueValue),
+        method: form.method,
         status: form.status,
         date: form.date,
+        sender: form.sender || undefined,
+        transactionId: form.transactionId || undefined,
+        description: form.description || undefined,
         file: form.file || undefined,
       };
       if (mode === 'edit' && payment?.Id) {
@@ -79,6 +94,20 @@ export default function PaymentAddPage({ mode = 'create', payment, onSave, onNav
         )}
         <form onSubmit={handleSubmit} className="space-y-5">
 
+          {/* Payment title */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Payment Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.paymentTitle}
+              onChange={(e) => set('paymentTitle', e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400"
+            />
+          </div>
+
           {/* Supplier */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -86,7 +115,9 @@ export default function PaymentAddPage({ mode = 'create', payment, onSave, onNav
             </label>
             <select
               value={form.supplierId}
-              onChange={(e) => set('supplierId', e.target.value)}
+              onChange={(e) => {
+                setForm((prev) => ({ ...prev, supplierId: e.target.value, due: '' }));
+              }}
               required
               disabled={suppliersLoading}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:border-blue-400 bg-white"
@@ -103,8 +134,8 @@ export default function PaymentAddPage({ mode = 'create', payment, onSave, onNav
             )}
           </div>
 
-          {/* Amount + Status */}
-          <div className="grid grid-cols-2 gap-5">
+          {/* Amount + Due */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Amount <span className="text-red-500">*</span>
@@ -121,6 +152,76 @@ export default function PaymentAddPage({ mode = 'create', payment, onSave, onNav
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Due <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                value={dueValue}
+                readOnly
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none bg-gray-100 text-gray-600"
+              />
+            </div>
+          </div>
+
+          {/* Method + Date */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Method <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={form.method}
+                onChange={(e) => set('method', e.target.value)}
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:border-blue-400 bg-white"
+              >
+                <option value="">Select Method..</option>
+                {PAYMENT_METHODS.map((method) => (
+                  <option key={method} value={method}>{method}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => set('date', e.target.value)}
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+          </div>
+
+          {/* Sender + Transaction ID */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Sender</label>
+              <input
+                type="text"
+                value={form.sender}
+                onChange={(e) => set('sender', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Transaction ID</label>
+              <input
+                type="text"
+                value={form.transactionId}
+                onChange={(e) => set('transactionId', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+          </div>
+
+          {/* Status + File reference */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Status <span className="text-red-500">*</span>
               </label>
               <select
@@ -133,31 +234,26 @@ export default function PaymentAddPage({ mode = 'create', payment, onSave, onNav
                 <option value="Unpaid">Unpaid</option>
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">File / Reference</label>
+              <input
+                type="text"
+                value={form.file}
+                onChange={(e) => set('file', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400"
+                placeholder="File name or reference (optional)"
+              />
+            </div>
           </div>
 
-          {/* Date */}
+          {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
-              Date <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={form.date}
-              onChange={(e) => set('date', e.target.value)}
-              required
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+              rows={3}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400"
-            />
-          </div>
-
-          {/* File reference */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">File / Reference</label>
-            <input
-              type="text"
-              value={form.file}
-              onChange={(e) => set('file', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400"
-              placeholder="File name or reference (optional)"
             />
           </div>
 

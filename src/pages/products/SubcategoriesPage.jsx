@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useCategories, useSubcategories } from '../../hooks/useProducts';
 import { subcategoryService } from '../../services/productService';
 
 export default function SubcategoriesPage({ onNavigate, onEditSubcategory }) {
   const [search, setSearch] = useState('');
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
   const { data: subcategories, meta, loading, error, refetch } = useSubcategories({ searchTerm: search, limit: 100 });
   const { data: categories } = useCategories({ limit: 200 });
   const categoryById = new Map(categories.map((category) => [String(category.Id), category.name]));
@@ -16,6 +17,24 @@ export default function SubcategoriesPage({ onNavigate, onEditSubcategory }) {
       refetch();
     } catch (e) {
       alert(e.message);
+    }
+  }
+
+  async function handleToggleStatus(sub) {
+    const active = sub.status === 'Active' || sub.status === 'active';
+    const nextStatus = active ? 'Inactive' : 'Active';
+    setStatusUpdatingId(sub.Id);
+    try {
+      await subcategoryService.update(sub.Id, {
+        name: sub.name,
+        categoryId: sub.categoryId || null,
+        status: nextStatus,
+      });
+      refetch();
+    } catch (e) {
+      alert(e.message || 'Subcategory status update করতে সমস্যা হয়েছে');
+    } finally {
+      setStatusUpdatingId(null);
     }
   }
 
@@ -31,7 +50,7 @@ export default function SubcategoriesPage({ onNavigate, onEditSubcategory }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between" style={{ background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)' }}>
           <span className="text-white font-semibold text-sm">All Subcategories ({meta?.count ?? subcategories.length})</span>
           <input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="text-xs px-3 py-1.5 rounded-lg border-0 focus:outline-none w-36" />
@@ -39,7 +58,7 @@ export default function SubcategoriesPage({ onNavigate, onEditSubcategory }) {
         {loading && <div className="text-center py-8 text-gray-400 text-xs">Loading...</div>}
         {error && <div className="text-center py-8 text-red-400 text-xs">{error}</div>}
         {!loading && !error && (
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-4 py-3 text-left text-gray-500 font-semibold">#</th>
@@ -63,6 +82,11 @@ export default function SubcategoriesPage({ onNavigate, onEditSubcategory }) {
                     <div className="flex items-center justify-center gap-1">
                       <Btn icon={<Edit2 size={12} />} color="bg-blue-100 text-blue-600 hover:bg-blue-200" onClick={() => onEditSubcategory && onEditSubcategory(sub)} />
                       <Btn icon={<Trash2 size={12} />} color="bg-red-100 text-red-500 hover:bg-red-200" onClick={() => handleDelete(sub.Id)} />
+                      <StatusToggleBtn
+                        active={sub.status === 'Active' || sub.status === 'active'}
+                        loading={statusUpdatingId === sub.Id}
+                        onClick={() => handleToggleStatus(sub)}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -82,4 +106,18 @@ function StatusBadge({ status }) {
 
 function Btn({ icon, color, onClick }) {
   return <button onClick={onClick} className={`w-6 h-6 rounded flex items-center justify-center transition ${color}`}>{icon}</button>;
+}
+
+function StatusToggleBtn({ active, loading, onClick }) {
+  return (
+    <button
+      type="button"
+      title={active ? 'Make Inactive' : 'Make Active'}
+      onClick={onClick}
+      disabled={loading}
+      className={`w-6 h-6 rounded flex items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-60 ${active ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`}
+    >
+      {loading ? <Loader2 size={12} className="animate-spin" /> : active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+    </button>
+  );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -15,16 +15,55 @@ import heroImage from "../../assets/hero.png";
 import sslcommerzImage from "../../assets/sslcommerz.png";
 import { landingPageService } from "../../services/landingPageService";
 import { orderService } from "../../services/orderService";
-import { trackMarketingEvent } from "../../services/trackingService";
+import {
+  getTrackingClickData,
+  setTrackingSuspended,
+  trackMarketingEvent,
+} from "../../services/trackingService";
 import {
   siteSettingService,
   websitePageService,
 } from "../../services/websiteService";
+import { imageUrl } from "../../utils/assetUrl";
 
 const SHIPPING_OPTIONS = [
   { id: "inside", label: "Inside Dhaka", charge: 80 },
   { id: "outside", label: "Outside Dhaka", charge: 130 },
 ];
+
+const DEVICE_ID_KEY = "holydeen_device_id";
+
+function getLandingDeviceId() {
+  if (typeof window === "undefined") return "";
+  const existing = window.localStorage.getItem(DEVICE_ID_KEY);
+  if (existing) return existing;
+
+  const generated =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  window.localStorage.setItem(DEVICE_ID_KEY, generated);
+  return generated;
+}
+
+function normalizeBangladeshPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (/^01\d{9}$/.test(digits)) return digits;
+  if (/^8801\d{9}$/.test(digits)) return `0${digits.slice(3)}`;
+  return "";
+}
+
+function trackLandingContactClick(label, value) {
+  void trackMarketingEvent("Contact", {
+    customData: {
+      content_name: label || "Landing contact",
+      content_type: "contact",
+      contact_value: value || "",
+      currency: "BDT",
+      value: 0,
+    },
+  });
+}
 
 const WINNERS = [
   "রাকিবুল ইসলাম",
@@ -40,7 +79,76 @@ const WINNERS = [
   "প্রান্তির রহমান",
 ];
 
-export default function LandingPageViewPage({ campaign }) {
+function isRegularLandingPage(campaign) {
+  const pageType = String(campaign?.pageType || "").trim().toLowerCase();
+  const template = String(campaign?.template || campaign?.campaignTemplate || "")
+    .trim()
+    .toLowerCase();
+  if (isMurdaMoshariOffer(campaign)) return false;
+  return pageType === "regular" || template === "regular";
+}
+
+function isMurdaMoshariOffer(campaign) {
+  const haystack = [
+    campaign?.template,
+    campaign?.campaignTemplate,
+    campaign?.title,
+    campaign?.campaignTitle,
+    campaign?.product,
+    campaign?.productName,
+  ]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+  return (
+    haystack.includes("murda moshari") ||
+    haystack.includes("মুর্দা মশারি") ||
+    haystack.includes("morda moshari")
+  );
+}
+
+function parseObject(value) {
+  if (!value) return {};
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function getVideoEmbedUrl(value) {
+  if (!value) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0];
+      return id ? `https://www.youtube.com/embed/${id}` : "";
+    }
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname.startsWith("/embed/")) return raw;
+      const id = url.searchParams.get("v");
+      return id ? `https://www.youtube.com/embed/${id}` : raw;
+    }
+  } catch {
+    return raw;
+  }
+
+  return raw;
+}
+
+export default function LandingPageViewPage({ campaign, trackingEnabled = true }) {
+  // Declared first so it runs before the PageView/ViewContent effect below.
+  useEffect(() => {
+    setTrackingSuspended(!trackingEnabled);
+    return () => setTrackingSuspended(false);
+  }, [trackingEnabled]);
+
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -57,24 +165,52 @@ export default function LandingPageViewPage({ campaign }) {
   const [showTrackOrder, setShowTrackOrder] = useState(false);
   const [footerSettings, setFooterSettings] = useState(null);
   const [footerPages, setFooterPages] = useState([]);
+  const incompleteOrderIdRef = useRef(null);
+  const incompletePhoneRef = useRef("");
+  const leadTrackedOrderIdRef = useRef(null);
+  const viewedCampaignRef = useRef(null);
+  const checkoutCampaignRef = useRef(null);
 
   const productName = getProductName(campaign);
   const title =
     campaign?.campaignTitle || campaign?.title || "Attar & Perfume Combo Pack";
   const subTitle =
     campaign?.subTitle || "অল্প সময়ে ঘরে বসে প্রিমিয়াম সুগন্ধির কালেকশন পান";
-  const price = toNumber(campaign?.price, 699);
-  const originalPrice = toNumber(campaign?.originalPrice, 1500);
-  const phone = campaign?.phone || "+8808647-222899";
+  const regularPage = isRegularLandingPage(campaign);
+  const price = toNumber(campaign?.price, regularPage ? 4100 : 699);
+  const originalPrice = toNumber(campaign?.originalPrice, regularPage ? 5600 : 1500);
+  const phone =
+    String(campaign?.phone || "").trim() ||
+    footerSettings?.header?.supportPhone ||
+    footerSettings?.footer?.supportPhone ||
+    footerSettings?.contact?.hotlineNumber ||
+    footerSettings?.contact?.phoneNumber ||
+    footerSettings?.contact?.phone ||
+    "";
   const shortDescription = stripHtml(campaign?.shortDescription || "");
   const descriptionTitle =
     campaign?.descriptionTitle || "এই ক্যাম্পেইনের বিশেষ অফার";
   const bannerImage = campaign?.bannerImageUrl || heroImage;
   const prizeImageSource = campaign?.prizeImageUrl || "";
   const reviewImages = parseImages(campaign?.reviewImages);
+  const productOptions = useMemo(
+    () => getLandingProductOptions(campaign, { productName, price, originalPrice, bannerImage }),
+    [campaign, productName, price, originalPrice, bannerImage],
+  );
+  const [selectedProducts, setSelectedProducts] = useState(() =>
+    initializeSelectedProducts(productOptions),
+  );
   const deliveryCharge =
     SHIPPING_OPTIONS.find((option) => option.id === form.shipping)?.charge || 0;
-  const total = price + deliveryCharge;
+  const productSubtotal = selectedProducts.reduce(
+    (sum, item) => sum + item.price * item.qty,
+    0,
+  );
+  const total = productSubtotal + deliveryCharge;
+
+  useEffect(() => {
+    setSelectedProducts(initializeSelectedProducts(productOptions));
+  }, [productOptions]);
 
   useEffect(() => {
     let active = true;
@@ -93,6 +229,8 @@ export default function LandingPageViewPage({ campaign }) {
   }, []);
 
   useEffect(() => {
+    if (!trackingEnabled || !campaign?.Id || viewedCampaignRef.current === campaign.Id) return;
+    viewedCampaignRef.current = campaign.Id;
     const contentId = String(campaign?.productId || campaign?.Id || "");
     const commonData = {
       content_ids: contentId ? [contentId] : [],
@@ -105,7 +243,7 @@ export default function LandingPageViewPage({ campaign }) {
     };
     void trackMarketingEvent("PageView");
     void trackMarketingEvent("ViewContent", { customData: commonData });
-  }, [campaign?.Id, campaign?.productId, price, title]);
+  }, [campaign?.Id, campaign?.productId, price, title, trackingEnabled]);
 
   useEffect(() => {
     let active = true;
@@ -157,12 +295,172 @@ export default function LandingPageViewPage({ campaign }) {
     [campaign?.Id, landingPages],
   );
 
+  function startCheckout() {
+    if (!trackingEnabled || checkoutCampaignRef.current === campaign?.Id) return;
+    checkoutCampaignRef.current = campaign?.Id;
+    void trackMarketingEvent("InitiateCheckout", { enabled: trackingEnabled, customData: {
+      content_ids: getSelectedOrderItems().map((item) => String(item.productId || item.id)),
+      content_type: "product", value: total, currency: "BDT",
+    } });
+  }
+
+  function trackAddedProduct(item, quantity = 1) {
+    if (!trackingEnabled) return;
+    void trackMarketingEvent("AddToCart", { enabled: trackingEnabled, customData: {
+      content_ids: [String(item.productId || item.id)], content_type: "product",
+      contents: [{ id: String(item.productId || item.id), quantity, item_price: item.price }],
+      value: item.price * quantity, currency: "BDT",
+    } });
+  }
+
   function set(field, value) {
+    startCheckout();
     setForm((previous) => ({ ...previous, [field]: value }));
   }
 
+  function toggleProductOption(option) {
+    startCheckout();
+    if (!selectedProducts.some((item) => item.id === option.id)) trackAddedProduct(option);
+    setSelectedProducts((current) => {
+      const exists = current.some((item) => item.id === option.id);
+      if (exists) {
+        const next = current.filter((item) => item.id !== option.id);
+        return next.length ? next : current;
+      }
+      return [...current, { ...option, qty: 1 }];
+    });
+  }
+
+  function changeProductQty(optionId, delta) {
+    startCheckout();
+    const item = selectedProducts.find((entry) => entry.id === optionId);
+    if (item && delta > 0) trackAddedProduct(item, delta);
+    setSelectedProducts((current) =>
+      current.map((item) =>
+        item.id === optionId ? { ...item, qty: Math.max(1, item.qty + delta) } : item,
+      ),
+    );
+  }
+
+  function getSelectedOrderItems() {
+    return selectedProducts.length
+      ? selectedProducts
+      : initializeSelectedProducts(productOptions);
+  }
+
+  function buildLandingOrderPayload({ status = "pending", phoneNumber } = {}) {
+    const selectedItems = getSelectedOrderItems();
+    const shippingLabel =
+      SHIPPING_OPTIONS.find((option) => option.id === form.shipping)?.label ||
+      "Inside Dhaka";
+    const today = new Date().toISOString().slice(0, 10);
+    const productSummary = selectedItems.map((item) => `${item.name} x${item.qty}`).join(", ");
+    const orderItems = selectedItems.map((item) => ({
+      productId: item.productId || item.id,
+      name: item.name,
+      qty: item.qty,
+      price: item.price,
+      total: item.price * item.qty,
+      image: item.image || "",
+    }));
+    const normalizedPhone = phoneNumber || normalizeBangladeshPhone(form.phone) || form.phone.trim();
+    const incompleteOrderId =
+      incompletePhoneRef.current === normalizedPhone ? incompleteOrderIdRef.current : null;
+
+    const tracking = getTrackingClickData();
+
+    return {
+      ...(incompleteOrderId ? { incompleteOrderId } : {}),
+      deviceId: getLandingDeviceId(),
+      customerName: form.name.trim(),
+      customerPhone: normalizedPhone,
+      customerAddress: form.address.trim(),
+      customerArea: shippingLabel,
+      customerDistrict: "",
+      productName: productSummary || productName,
+      productImage: selectedItems[0]?.image || "",
+      quantity: selectedItems.reduce((sum, item) => sum + item.qty, 0),
+      totalBill: total,
+      advance: 0,
+      courier: "",
+      status,
+      note: JSON.stringify({
+        landingPage: title,
+        customerAddress: form.address.trim(),
+        paymentMethod: "cod",
+        items: orderItems,
+        subtotal: productSubtotal,
+        deliveryCharge,
+        total,
+        tracking,
+      }),
+      tracking,
+      orderDate: today,
+    };
+  }
+
+  useEffect(() => {
+    if (placedOrder) return undefined;
+
+    const normalizedPhone = normalizeBangladeshPhone(form.phone);
+    if (!normalizedPhone) {
+      incompleteOrderIdRef.current = null;
+      incompletePhoneRef.current = "";
+      leadTrackedOrderIdRef.current = null;
+      return undefined;
+    }
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await orderService.saveIncompleteOrder(
+          buildLandingOrderPayload({ status: "incomplete", phoneNumber: normalizedPhone }),
+        );
+        const draft = response?.data || response || {};
+        const draftId = draft.Id || draft.id;
+        if (draftId) {
+          incompleteOrderIdRef.current = draftId;
+          incompletePhoneRef.current = normalizedPhone;
+          if (leadTrackedOrderIdRef.current !== draftId) {
+            leadTrackedOrderIdRef.current = draftId;
+            void trackMarketingEvent("Lead", {
+              userData: { name: form.name.trim(), phone: normalizedPhone },
+              customData: {
+                content_ids: getSelectedOrderItems().map((item) => String(item.productId || item.id)).filter(Boolean),
+                content_name: title,
+                content_type: "product",
+                value: total,
+                currency: "BDT",
+                order_id: draft.orderId || draftId,
+              },
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("Incomplete landing order save failed:", error?.message || error);
+      }
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    form.name,
+    form.phone,
+    form.address,
+    form.shipping,
+    placedOrder,
+    selectedProducts,
+    productOptions,
+    productName,
+    productSubtotal,
+    deliveryCharge,
+    total,
+    title,
+  ]);
+
   async function handlePlaceOrder() {
+    if (placingOrder || placedOrder) return;
+    startCheckout();
     setOrderError("");
+    const normalizedPhone = normalizeBangladeshPhone(form.phone);
     if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
       setOrderError(
         "Please enter your name, phone number and delivery address.",
@@ -172,48 +470,50 @@ export default function LandingPageViewPage({ campaign }) {
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
+    if (!normalizedPhone) {
+      setOrderError("Please enter a valid Bangladeshi phone number.");
+      document
+        .getElementById("order-now")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
 
     setPlacingOrder(true);
-    const contentId = String(campaign?.productId || campaign?.Id || "");
+    const selectedItems = getSelectedOrderItems();
+    const contentId = String(selectedItems[0]?.productId || campaign?.productId || campaign?.Id || "");
     const trackingData = {
-      content_ids: contentId ? [contentId] : [],
+      content_ids: selectedItems.map((item) => String(item.productId || item.id)).filter(Boolean),
       content_id: contentId,
       content_type: "product",
-      content_name: title,
-      contents: contentId ? [{ content_id: contentId, quantity: 1, price }] : [],
+      content_name: selectedItems.map((item) => item.name).join(", ") || title,
+      contents: selectedItems.map((item) => ({
+        content_id: String(item.productId || item.id),
+        quantity: item.qty,
+        price: item.price,
+      })),
       value: total,
       currency: "BDT",
-      num_items: 1,
+      num_items: selectedItems.reduce((sum, item) => sum + item.qty, 0),
     };
-    const trackingUser = { name: form.name.trim(), phone: form.phone.trim() };
-    void trackMarketingEvent("InitiateCheckout", {
-      userData: trackingUser,
-      customData: trackingData,
-    });
+    const trackingUser = { name: form.name.trim(), phone: normalizedPhone };
+
     try {
-      const shippingLabel =
-        SHIPPING_OPTIONS.find((option) => option.id === form.shipping)?.label ||
-        "Inside Dhaka";
-      const today = new Date().toISOString().slice(0, 10);
-      const payload = {
-        customerName: form.name.trim(),
-        customerPhone: form.phone.trim(),
-        customerArea: shippingLabel,
-        customerDistrict: "",
-        productName,
-        productImage: "",
-        quantity: 1,
-        totalBill: total,
-        advance: 0,
-        courier: "",
-        status: "pending",
-        note: `Landing Page: ${title}\nAddress: ${form.address.trim()}\nPayment: Cash on Delivery\nProduct price: ${price}\nDelivery charge: ${deliveryCharge}`,
-        orderDate: today,
-      };
+      void trackMarketingEvent("AddPaymentInfo", {
+        userData: trackingUser,
+        customData: trackingData,
+      });
+      const payload = buildLandingOrderPayload({ phoneNumber: normalizedPhone });
+      payload.landingTracking = { enabled: trackingEnabled, eventSourceUrl: window.location.href, customData: trackingData };
       const response = await orderService.createOrder(payload);
       const placedOrderData = response.data || payload;
       setPlacedOrder(placedOrderData);
+      incompleteOrderIdRef.current = null;
+      incompletePhoneRef.current = "";
+      leadTrackedOrderIdRef.current = null;
       void trackMarketingEvent("Purchase", {
+        enabled: trackingEnabled,
+        eventId: placedOrderData.purchaseEventId,
+        server: !placedOrderData.purchaseEventId,
         userData: {
           ...trackingUser,
           customerId: placedOrderData.customerId || placedOrderData.customer?.Id,
@@ -242,6 +542,11 @@ export default function LandingPageViewPage({ campaign }) {
     subTitle,
     price,
     originalPrice,
+    productOptions,
+    selectedProducts,
+    productSubtotal,
+    toggleProductOption,
+    changeProductQty,
     phone,
     shortDescription,
     descriptionTitle,
@@ -249,6 +554,11 @@ export default function LandingPageViewPage({ campaign }) {
     prizeImageSource,
     reviewImages,
     deliveryCharge,
+    productOptions,
+    selectedProducts,
+    productSubtotal,
+    toggleProductOption,
+    changeProductQty,
     total,
     relatedProducts,
     placingOrder,
@@ -289,6 +599,22 @@ export default function LandingPageViewPage({ campaign }) {
         footerSettings={footerSettings}
         footerPages={footerPages}
       />
+    );
+  }
+
+  if (isMurdaMoshariOffer(campaign)) {
+    return (
+      <PreviewShell tone="light">
+        <MurdaMoshariOfferTemplate data={viewData} campaign={campaign} />
+      </PreviewShell>
+    );
+  }
+
+  if (regularPage) {
+    return (
+      <PreviewShell tone="light">
+        <RegularLandingTemplate data={viewData} campaign={campaign} />
+      </PreviewShell>
     );
   }
 
@@ -338,7 +664,7 @@ export default function LandingPageViewPage({ campaign }) {
                 <img
                   src={footerSettings.header.logoUrl}
                   alt={footerSettings.header.logoAlt || "Website logo"}
-                  className="mx-auto h-12 max-w-48 object-contain"
+                  className="mx-auto h-16 max-w-56 object-contain"
                 />
               ) : (
                 <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-xs font-black text-white shadow-sm">
@@ -519,29 +845,13 @@ export default function LandingPageViewPage({ campaign }) {
               </div>
 
               <aside className="space-y-4">
-                <div className="rounded border border-blue-200 bg-blue-50 p-4">
-                  <h3 className="text-xs font-bold text-blue-700">
-                    Campaign Product
-                  </h3>
-                  <div className="mt-3 flex items-center gap-3 rounded border border-emerald-300 bg-white p-3">
-                    <img
-                      src={bannerImage}
-                      alt={productName}
-                      className="h-12 w-16 rounded object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-black text-slate-800">
-                        {productName}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Special campaign offer
-                      </p>
-                    </div>
-                    <p className="text-sm font-black text-emerald-700">
-                      {formatMoney(price)}
-                    </p>
-                  </div>
-                </div>
+                <ProductOptionsCheckout
+                  title="Campaign Products"
+                  options={productOptions}
+                  selectedProducts={selectedProducts}
+                  onToggle={toggleProductOption}
+                  onQtyChange={changeProductQty}
+                />
 
                 <div className="rounded border border-slate-200 bg-white p-4">
                   <h3 className="text-sm font-black text-slate-900">
@@ -550,7 +860,7 @@ export default function LandingPageViewPage({ campaign }) {
                   <div className="mt-3 space-y-2 text-sm">
                     <SummaryRow
                       label="Product"
-                      value={`BDT ${formatMoney(price)}`}
+                      value={`BDT ${formatMoney(productSubtotal)}`}
                     />
                     <SummaryRow
                       label="Delivery"
@@ -651,6 +961,565 @@ function PreviewShell({ tone = "light", children }) {
     >
       {children}
     </div>
+  );
+}
+
+function MurdaMoshariOfferTemplate({ data, campaign }) {
+  const {
+    form,
+    set,
+    productName,
+    title,
+    subTitle,
+    price,
+    originalPrice,
+    phone,
+    bannerImage,
+    productOptions,
+    selectedProducts,
+    productSubtotal,
+    toggleProductOption,
+    changeProductQty,
+    deliveryCharge,
+    total,
+    placingOrder,
+    orderError,
+    onPlaceOrder,
+  } = data;
+  const regularData = parseObject(campaign?.regularData);
+  const ctaText = regularData.ctaText || "অর্ডার করতে ক্লিক করুন";
+  const orderTitle = regularData.orderTitle || "অর্ডার করতে আপনার সঠিক তথ্য দিয়ে নিচের ফর্মটি সম্পূর্ণ পূরণ করুন।";
+  const priceLine = regularData.priceLine || "";
+  const pricePrefix = regularData.pricePrefix || "মাত্র";
+  const priceSuffix = regularData.priceSuffix || "টাকায়";
+  const sizeTitle = regularData.sizeTitle || "";
+  const introText = regularData.introText || "";
+  const offerImageTitle = regularData.offerImageTitle || "";
+  const carouselItems = normalizeCarouselItems(regularData.carouselItems).length
+    ? normalizeCarouselItems(regularData.carouselItems)
+    : productOptions;
+  const shortDescription = stripHtml(campaign?.shortDescription || "");
+  const whyChooseUs = stripHtml(campaign?.whyChooseUs || "");
+  const description = stripHtml(campaign?.description || "");
+
+  return (
+    <div className="min-h-screen bg-white text-slate-950">
+      <main className="mx-auto max-w-[1200px] px-3 py-5">
+        {title ? (
+          <h1 className="text-center text-3xl font-black text-red-600 md:text-5xl">
+            {title}
+          </h1>
+        ) : null}
+        {subTitle ? (
+          <div className="mt-5 bg-black px-4 py-3 text-center text-3xl font-black text-white md:text-5xl">
+            {subTitle}
+          </div>
+        ) : null}
+        {priceLine || price ? (
+          <div className="mt-5 bg-yellow-300 px-4 py-3 text-center text-3xl font-black text-red-600 md:text-5xl">
+            {priceLine || `${pricePrefix} ${formatMoney(price)} ${priceSuffix}`}
+          </div>
+        ) : null}
+        {bannerImage ? (
+          <img
+            src={bannerImage}
+            alt={productName}
+            className="mx-auto mt-8 w-full max-w-[1140px] object-contain"
+          />
+        ) : null}
+        <div className="mt-6 text-center">
+          <JumpButton targetId="order-now">{ctaText}</JumpButton>
+        </div>
+
+        {introText || shortDescription || campaign?.descriptionTitle ? (
+          <section className="mx-auto max-w-[900px] px-4 py-8 text-center">
+            {introText ? (
+              <IntroTextBlock value={introText} />
+            ) : null}
+            {campaign?.descriptionTitle ? (
+              <h2 className="text-3xl font-black text-orange-600">
+                {campaign.descriptionTitle}
+              </h2>
+            ) : null}
+            {shortDescription ? (
+              <DynamicTextBlock value={shortDescription} />
+            ) : null}
+          </section>
+        ) : null}
+
+        {carouselItems.length ? (
+          <section className="px-4 py-6 text-center">
+            {offerImageTitle ? (
+              <h2 className="mb-5 text-3xl font-black text-orange-600">
+                {offerImageTitle}
+              </h2>
+            ) : null}
+            <ProductCardCarousel options={carouselItems} />
+          </section>
+        ) : null}
+
+        {whyChooseUs || campaign?.whyChooseTitle ? (
+          <section className="mx-auto max-w-[900px] px-4 py-8">
+            {campaign?.whyChooseTitle ? (
+              <h2 className="text-center text-3xl font-black text-orange-600">
+                {campaign.whyChooseTitle}
+              </h2>
+            ) : null}
+            {whyChooseUs ? <DynamicTextBlock value={whyChooseUs} /> : null}
+          </section>
+        ) : null}
+
+        {description ? (
+          <section className="mx-auto max-w-[900px] px-4 py-8">
+            {sizeTitle ? (
+              <h2 className="text-center text-3xl font-black text-orange-600">
+                {sizeTitle}
+              </h2>
+            ) : null}
+            <DynamicTextBlock value={description} />
+          </section>
+        ) : null}
+
+        <section id="order-now" className="px-4 py-10">
+          <div className="mx-auto max-w-5xl rounded border-2 border-slate-900 bg-white p-5 md:p-7">
+            <h2 className="text-center text-2xl font-black text-sky-400 md:text-4xl">
+              {orderTitle}
+            </h2>
+            <div className="mt-7">
+              <ProductOptionsCheckout
+                title="আপনার প্রোডাক্টটি সিলেক্ট করুন"
+                options={productOptions}
+                selectedProducts={selectedProducts}
+                onToggle={toggleProductOption}
+                onQtyChange={changeProductQty}
+                compact={false}
+              />
+            </div>
+            <div className="mt-8 grid gap-8 md:grid-cols-[1fr_0.9fr]">
+              <div>
+                <Input label="আপনার নাম *" value={form.name} onChange={(value) => set("name", value)} placeholder="আপনার নাম" />
+                <Input label="আপনার ফোন নাম্বার *" value={form.phone} onChange={(value) => set("phone", value)} placeholder="মোবাইল নাম্বার দিন" type="tel" />
+                <Input label="আপনার ঠিকানা *" value={form.address} onChange={(value) => set("address", value)} placeholder="আপনার সম্পূর্ণ ঠিকানা" />
+                <textarea
+                  value={form.note || ""}
+                  onChange={(event) => set("note", event.target.value)}
+                  placeholder="অর্ডার এবং কলার সম্পর্কে কিছু বলার থাকলে এখানে লিখুন"
+                  className="mt-3 min-h-24 w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-green-600"
+                />
+                {orderError ? <p className="mt-4 text-sm font-bold text-red-500">{orderError}</p> : null}
+                <button
+                  type="button"
+                  onClick={onPlaceOrder}
+                  disabled={placingOrder}
+                  className="mt-5 w-full rounded bg-orange-600 px-5 py-4 text-base font-black text-white transition hover:bg-orange-700 disabled:opacity-60"
+                >
+                  🔒 {placingOrder ? "অর্ডার হচ্ছে..." : `Place Order ${formatMoney(total)}৳`}
+                </button>
+              </div>
+              <div className="rounded border border-slate-200 p-4">
+                <h3 className="text-xl font-black text-slate-800">Your order</h3>
+                <div className="mt-4 space-y-3">
+                  {selectedProducts.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                      <img src={imageUrl(item.image) || bannerImage} alt={item.name} className="h-12 w-12 rounded object-cover" />
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm font-bold">{item.name}</p>
+                        <p className="text-xs text-slate-500">x {item.qty}</p>
+                      </div>
+                      <strong>{formatMoney(item.price * item.qty)}৳</strong>
+                    </div>
+                  ))}
+                  <SummaryRow label="Subtotal" value={`${formatMoney(productSubtotal)}৳`} />
+                  <SummaryRow label="Delivery" value={`${formatMoney(deliveryCharge)}৳`} />
+                  <SummaryRow label="Total" value={`${formatMoney(total)}৳`} strong />
+                </div>
+              </div>
+            </div>
+            {phone ? (
+              <a href={`tel:${String(phone).replace(/\s+/g, "")}`} className="mt-6 block text-center text-lg font-black text-blue-600">
+                {phone}
+              </a>
+            ) : null}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function DynamicTextBlock({ value }) {
+  const lines = String(value || "")
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (lines.length > 1) {
+    return (
+      <ul className="mx-auto mt-6 max-w-3xl space-y-3 text-left text-lg font-bold text-gray-600">
+        {lines.map((line) => (
+          <li key={line} className="flex gap-3">
+            <span className="mt-1 h-4 w-4 rounded-full bg-yellow-400" />
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return <p className="mt-5 text-xl font-black leading-9 text-slate-900">{lines[0]}</p>;
+}
+
+function IntroTextBlock({ value }) {
+  const lines = String(value || "")
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!lines.length) return null;
+  return (
+    <div className="mb-6 text-center text-2xl font-black leading-9 text-slate-950">
+      {lines.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+    </div>
+  );
+}
+
+function RegularLandingTemplate({ data, campaign }) {
+  const {
+    form,
+    set,
+    productName,
+    title,
+    subTitle,
+    phone,
+    shortDescription,
+    descriptionTitle,
+    bannerImage,
+    deliveryCharge,
+    productOptions,
+    selectedProducts,
+    productSubtotal,
+    toggleProductOption,
+    changeProductQty,
+    total,
+    placingOrder,
+    orderError,
+    onPlaceOrder,
+    onTrackOrder,
+    footerSettings,
+    footerPages,
+  } = data;
+  const regularData = parseObject(campaign?.regularData);
+  const colors = {
+    titleColor: "#7b2457",
+    subTitleColor: "#111111",
+    headingColor: "#7b2457",
+    fontColor: "#333333",
+    buttonColor: "#078f12",
+    buttonTextColor: "#ffffff",
+    sectionBgColor: "#e4f3df",
+    ...parseObject(regularData.colors),
+  };
+  const whyChooseTitle = campaign?.whyChooseTitle || "কেন আমাদের থেকেই কিনবেন?";
+  const whyChooseUs = stripHtml(campaign?.whyChooseUs || "");
+  const description = stripHtml(campaign?.description || shortDescription);
+  const videoEmbedUrl = getVideoEmbedUrl(campaign?.video);
+  const reviewHeading = campaign?.reviewTitle || "";
+  const reviewSubHeading = regularData.reviewSubTitle || "";
+  const reviewRegularPriceLabel = regularData.reviewRegularPriceLabel || "";
+  const reviewOfferPriceLabel = regularData.reviewOfferPriceLabel || "";
+  const reviewButtonText = regularData.reviewButtonText || "";
+  // Page-level prices win; otherwise show the first checkout product's prices.
+  const reviewOfferPrice =
+    toNumber(campaign?.price, 0) || toNumber(productOptions[0]?.price, 0);
+  const reviewRegularPrice =
+    toNumber(campaign?.originalPrice, 0) || toNumber(productOptions[0]?.originalPrice, 0);
+  const hasReviewSectionContent = Boolean(
+    reviewHeading ||
+    reviewSubHeading ||
+    reviewRegularPriceLabel ||
+    reviewOfferPriceLabel ||
+    reviewButtonText,
+  );
+  const featureSectionTitle = regularData.featureSectionTitle || "";
+  const headingItems = Array.isArray(regularData.headings)
+    ? regularData.headings.filter((item) => item?.title || item?.subtitle)
+    : [];
+  const featureImages = Array.isArray(regularData.images)
+    ? regularData.images.filter((item) => item?.title || item?.imageUrl)
+    : [];
+
+  return (
+    <div className="min-h-screen bg-white text-slate-900">
+      <TopStrip phone={phone} onTrack={onTrackOrder} settings={footerSettings?.header} />
+
+      <section className="bg-[#e4f3df] px-4 pb-14 pt-8 text-center">
+        {footerSettings?.header?.status !== false && footerSettings?.header?.logoUrl && (
+          <img
+            src={footerSettings.header.logoUrl}
+            alt={footerSettings.header.logoAlt || "Website logo"}
+            className="mx-auto mb-5 h-20 max-w-64 object-contain"
+          />
+        )}
+        <h1 className="text-3xl font-black md:text-5xl" style={{ color: colors.titleColor }}>
+          {title}
+        </h1>
+        <p className="mt-4 text-xl font-black md:text-3xl" style={{ color: colors.subTitleColor }}>
+          {subTitle}
+        </p>
+        <div className="mx-auto mt-7 max-w-5xl overflow-hidden rounded-md bg-white shadow-sm">
+          <img src={bannerImage} alt={productName} className="w-full object-cover" />
+        </div>
+        <RegularButton targetId="order-now" color={colors.buttonColor} textColor={colors.buttonTextColor}>
+          🛒 অর্ডার করতে ক্লিক করুন
+        </RegularButton>
+      </section>
+
+      {headingItems.length > 0 && (
+        <section className="px-4 py-12">
+          <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {headingItems.map((item, index) => (
+              <div
+                key={`heading-${index}`}
+                className="rounded-lg px-5 py-6 text-center shadow-sm"
+                style={{ backgroundColor: item.backgroundColor || "#ffffff" }}
+              >
+                {item.title && (
+                  <h3 className="text-xl font-black" style={{ color: colors.headingColor }}>
+                    {item.title}
+                  </h3>
+                )}
+                {item.subtitle && (
+                  <p className="mt-3 text-sm font-semibold leading-6" style={{ color: colors.fontColor }}>
+                    {item.subtitle}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {hasReviewSectionContent && (
+        <section className="px-4 py-14 text-center" style={{ backgroundColor: colors.sectionBgColor }}>
+          {reviewHeading && (
+            <h2 className="text-3xl font-black md:text-5xl" style={{ color: colors.headingColor }}>
+              {reviewHeading}
+            </h2>
+          )}
+          {reviewSubHeading && (
+            <p className="mt-3 text-sm font-semibold" style={{ color: colors.fontColor }}>
+              {reviewSubHeading}
+            </p>
+          )}
+          {reviewRegularPriceLabel && reviewRegularPrice > 0 && (
+            <p className="mt-12 text-2xl font-black text-slate-600">
+              {reviewRegularPriceLabel} <span className="line-through">{formatMoney(reviewRegularPrice)}/- টাকা</span>
+            </p>
+          )}
+          {reviewOfferPriceLabel && reviewOfferPrice > 0 && (
+            <p className="mt-5 text-3xl font-black md:text-5xl" style={{ color: colors.headingColor }}>
+              {reviewOfferPriceLabel} <span className="text-green-600">{formatMoney(reviewOfferPrice)}/- টাকা</span>
+            </p>
+          )}
+          {reviewButtonText && (
+            <RegularButton targetId="order-now" color={colors.buttonColor} textColor={colors.buttonTextColor}>
+              {reviewButtonText}
+            </RegularButton>
+          )}
+        </section>
+      )}
+
+      <section className="px-4 py-16 text-center">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-3xl font-black md:text-5xl" style={{ color: colors.headingColor }}>
+            {descriptionTitle}
+          </h2>
+          <p className="mx-auto mt-6 max-w-4xl text-base leading-8" style={{ color: colors.fontColor }}>
+            {description || "পণ্যের বিস্তারিত তথ্য এখানে দেখানো হবে।"}
+          </p>
+          {videoEmbedUrl && (
+            <div className="mx-auto mt-8 aspect-video max-w-3xl overflow-hidden rounded-lg bg-black shadow-sm">
+              <iframe
+                src={videoEmbedUrl}
+                title={title || "Campaign video"}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          )}
+          <RegularButton targetId="order-now" color={colors.buttonColor} textColor={colors.buttonTextColor}>
+            📞 অর্ডার করতে চাই
+          </RegularButton>
+        </div>
+      </section>
+
+      {featureImages.length > 0 && (
+        <section className="px-4 py-16" style={{ backgroundColor: colors.sectionBgColor }}>
+          <div className="mx-auto max-w-5xl">
+            <h2 className="text-center text-3xl font-black md:text-5xl" style={{ color: colors.headingColor }}>
+              {featureSectionTitle}
+            </h2>
+            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+              {featureImages.map((item, index) => (
+                <div key={`${item.title || "feature"}-${index}`} className="overflow-hidden rounded-lg bg-white text-center shadow-sm">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.title || `Feature ${index + 1}`} className="h-36 w-full object-cover" />
+                  ) : (
+                    <div className="grid h-36 place-items-center bg-green-50 text-3xl">✅</div>
+                  )}
+                  <p className="px-3 py-4 text-base font-black" style={{ color: colors.headingColor }}>
+                    {item.title || `Feature ${index + 1}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="px-4 py-16" style={{ backgroundColor: colors.sectionBgColor }}>
+        <div className="mx-auto max-w-5xl text-center">
+          <h2 className="text-3xl font-black md:text-5xl" style={{ color: colors.headingColor }}>
+            {whyChooseTitle}
+          </h2>
+          <div className="mx-auto mt-6 max-w-4xl text-left text-base font-semibold leading-8" style={{ color: colors.fontColor }}>
+            {whyChooseUs ? (
+              <p>{whyChooseUs}</p>
+            ) : (
+              <p>✅ ১০০% অরিজিনাল পণ্য ✅ দ্রুত ডেলিভারি ✅ ক্যাশ অন ডেলিভারি সুবিধা ✅ সহজ অর্ডার প্রক্রিয়া</p>
+            )}
+          </div>
+          {phone ? (
+            <a
+              href={`tel:${String(phone).replace(/\s+/g, "")}`}
+              onClick={() => trackLandingContactClick("Landing phone", phone)}
+              className="mt-12 inline-flex items-center justify-center rounded-full border-4 border-white px-8 py-3 text-xl font-black shadow"
+              style={{ backgroundColor: colors.buttonColor, color: colors.buttonTextColor }}
+            >
+              📞 {phone}
+            </a>
+          ) : null}
+        </div>
+      </section>
+
+      <section id="order-now" className="bg-slate-100 px-4 py-20">
+        <div className="mx-auto max-w-5xl rounded border-2 border-green-600 bg-white p-6 md:p-8">
+          <h2 className="text-center text-3xl font-black text-slate-800">প্রোডাক্ট সিলেক্ট করুন</h2>
+          <div className="mt-6">
+            <ProductOptionsCheckout
+              title="Your Products"
+              options={productOptions}
+              selectedProducts={selectedProducts}
+              onToggle={toggleProductOption}
+              onQtyChange={changeProductQty}
+              compact={false}
+            />
+          </div>
+          <div className="mt-8 grid gap-8 md:grid-cols-[1fr_0.95fr]">
+            <div>
+              <p className="mb-4 text-sm font-black text-red-500">
+                আপনার নাম,মোবাইল নাম্বার এবং ঠিকানা লিখে সাবমিট করুন
+              </p>
+              <RegularOrderInput icon={<User size={18} />} placeholder="আপনার নাম" value={form.name} onChange={(value) => set("name", value)} />
+              <RegularOrderInput icon={<Phone size={18} />} placeholder="মোবাইল নাম্বার দিন" value={form.phone} onChange={(value) => set("phone", value)} />
+              <RegularOrderInput icon={<Package size={18} />} placeholder="আপনার সম্পূর্ণ ঠিকানা" value={form.address} onChange={(value) => set("address", value)} />
+              <div className="mt-4 overflow-hidden rounded border border-slate-200">
+                {SHIPPING_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => set("shipping", option.id)}
+                    className="flex w-full items-center gap-3 border-b border-slate-200 px-4 py-3 text-left text-sm last:border-b-0"
+                  >
+                    <span className={`h-5 w-5 rounded-full border ${form.shipping === option.id ? "border-green-600 bg-green-600" : "border-slate-300"}`} />
+                    {option.label === "Inside Dhaka" ? "ঢাকার ভিতরে ৮০ টাকা" : option.label === "Outside Dhaka" ? "ঢাকার বাইরে ১৩০ টাকা" : `${option.label} ${option.charge} টাকা`}
+                  </button>
+                ))}
+              </div>
+              {orderError ? <p className="mt-4 text-sm font-bold text-red-500">{orderError}</p> : null}
+              <button
+                type="button"
+                onClick={onPlaceOrder}
+                disabled={placingOrder}
+                className="mt-6 w-full rounded bg-green-700 px-5 py-4 text-base font-black text-white transition hover:bg-green-800 disabled:opacity-60"
+              >
+                🔒 {placingOrder ? "অর্ডার হচ্ছে..." : "অর্ডারটি কনফার্ম করুন"}
+              </button>
+            </div>
+            <div className="overflow-hidden rounded border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100">
+                  <tr>
+                    <th className="p-3 text-left">Product</th>
+                    <th className="p-3 text-center">Amount</th>
+                    <th className="p-3 text-right">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedProducts.map((item) => (
+                    <tr key={item.id} className="bg-slate-200">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <img src={imageUrl(item.image) || bannerImage} alt={item.name} className="h-10 w-10 rounded object-cover" />
+                          <span className="line-clamp-1 font-semibold">{item.name}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="inline-flex items-center gap-3 rounded border border-slate-700 px-3 py-1 font-bold">
+                          {item.qty} x
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">৳{formatMoney(item.price * item.qty)}</td>
+                    </tr>
+                  ))}
+                  <RegularTotalRow label="Total" value={productSubtotal} />
+                  <RegularTotalRow label="Delivery Charge" value={deliveryCharge} />
+                  <RegularTotalRow label="TOTAL" value={total} strong />
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Footer phone={phone} settings={footerSettings} pages={footerPages} />
+    </div>
+  );
+}
+
+function RegularButton({ targetId, color, textColor, children }) {
+  return (
+    <button
+      type="button"
+      onClick={() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+      className="mt-7 rounded-full border-4 border-white px-8 py-3 text-lg font-black shadow"
+      style={{ backgroundColor: color, color: textColor }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RegularOrderInput({ icon, placeholder, value, onChange }) {
+  return (
+    <label className="mb-3 flex items-center overflow-hidden rounded border border-slate-200 bg-white">
+      <span className="flex h-11 w-12 items-center justify-center bg-slate-100 text-slate-600">{icon}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="min-w-0 flex-1 px-3 py-3 text-sm outline-none"
+      />
+    </label>
+  );
+}
+
+function RegularTotalRow({ label, value, strong }) {
+  return (
+    <tr className={strong ? "font-black" : "font-bold"}>
+      <td className="p-3 text-right" colSpan={2}>{label}</td>
+      <td className="p-3 text-right">৳ {formatMoney(value)}</td>
+    </tr>
   );
 }
 
@@ -1681,8 +2550,8 @@ function TopStrip({ phone, onTrack, settings }) {
         color: settings?.textColor || "#ffffff",
       }}
     >
-      <div className="mx-auto flex w-full max-w-[1680px] flex-wrap items-center justify-between gap-x-16 gap-y-2 px-5 py-2.5 text-sm md:flex-nowrap md:px-8">
-        <p className="whitespace-nowrap">
+      <div className="mx-auto flex w-full max-w-[1680px] flex-wrap items-center justify-between gap-x-16 gap-y-2 px-5 py-2.5 text-sm md:px-8">
+        <p className="min-w-0 break-words">
           {settings?.helpText || "Need any help? Call"}{" "}
           <a
             href={
@@ -1710,7 +2579,7 @@ function TopStrip({ phone, onTrack, settings }) {
             ))}
         </p>
         <div
-          className="ml-auto flex items-center gap-5 whitespace-nowrap"
+          className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-2"
           style={{ color: settings?.accentColor || "#fbbf24" }}
         >
           <button
@@ -1816,7 +2685,7 @@ function Notice({ children, tone }) {
   );
 }
 
-function JumpButton({ children, targetId }) {
+function JumpButton({ children, targetId, className = "" }) {
   return (
     <button
       type="button"
@@ -1825,7 +2694,7 @@ function JumpButton({ children, targetId }) {
           .getElementById(targetId)
           ?.scrollIntoView({ behavior: "smooth", block: "start" })
       }
-      className="inline-flex items-center gap-2 rounded bg-emerald-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
+      className={`inline-flex items-center gap-2 rounded bg-emerald-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 ${className}`}
     >
       <ShoppingCart size={14} />
       {children}
@@ -1898,6 +2767,131 @@ function Input({ label, value, onChange, placeholder, type = "text" }) {
       />
     </label>
   );
+}
+
+function ProductOptionsCheckout({
+  title,
+  options,
+  selectedProducts,
+  onToggle,
+  onQtyChange,
+  compact = true,
+}) {
+  const selectedIds = new Set(selectedProducts.map((item) => item.id));
+
+  return (
+    <div className={`rounded border border-blue-200 bg-blue-50 ${compact ? "p-4" : "p-0 border-0 bg-transparent"}`}>
+      <h3 className="text-xs font-bold text-blue-700">{title}</h3>
+      <div className={`mt-3 grid gap-3 ${compact ? "" : "md:grid-cols-2"}`}>
+        {options.map((option) => {
+          const selected = selectedIds.has(option.id);
+          const cartItem = selectedProducts.find((item) => item.id === option.id);
+          return (
+            <div
+              key={option.id}
+              className={`flex items-center gap-3 rounded border bg-white p-3 transition ${
+                selected ? "border-emerald-400 ring-1 ring-emerald-100" : "border-slate-200"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => onToggle(option)}
+                className={`h-4 w-4 flex-shrink-0 rounded-full border ${
+                  selected ? "border-emerald-600 bg-emerald-600" : "border-slate-300"
+                }`}
+                aria-label={`Select ${option.name}`}
+              />
+              <img
+                src={imageUrl(option.image) || heroImage}
+                alt={option.name}
+                className="h-12 w-14 flex-shrink-0 rounded object-cover"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-black text-slate-800">{option.name}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center rounded border border-slate-200 bg-slate-50 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => selected && onQtyChange(option.id, -1)}
+                      disabled={!selected}
+                      className="px-2 py-1 disabled:opacity-40"
+                    >
+                      -
+                    </button>
+                    <span className="min-w-7 px-2 py-1 text-center">{cartItem?.qty || 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => selected && onQtyChange(option.id, 1)}
+                      disabled={!selected}
+                      className="px-2 py-1 disabled:opacity-40"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <span className="text-xs font-black text-emerald-700">
+                    ৳{formatMoney(option.price)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ProductCardCarousel({ options }) {
+  const carouselItems = options.length >= 4
+    ? options
+    : Array.from({ length: 4 }, (_, index) => options[index % options.length]).filter(Boolean);
+  const repeatedItems = [...carouselItems, ...carouselItems];
+
+  return (
+    <div className="mx-auto max-w-[1140px] overflow-hidden">
+      <style>{`
+        @keyframes murda-product-slide {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+        .murda-product-track {
+          animation: murda-product-slide 22s linear infinite;
+        }
+        .murda-product-track:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+      <div className="murda-product-track flex w-max gap-4">
+        {repeatedItems.map((option, index) => (
+          <div
+            key={`${option.id}-${index}`}
+            className="w-[82vw] max-w-[270px] flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-white shadow-sm sm:w-[45vw] lg:w-[270px]"
+          >
+            <div className="aspect-square overflow-hidden bg-slate-50">
+              <img
+                src={imageUrl(option.image) || heroImage}
+                alt={option.name}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function normalizeCarouselItems(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => ({
+      id: item.id || item.productId || `carousel-${index}`,
+      name: item.name || "",
+      price: toNumber(item.price, 0),
+      originalPrice: toNumber(item.originalPrice, 0),
+      image: item.image || "",
+    }))
+    .filter((item) => item.name || item.image);
 }
 
 function RadioOption({ selected, label, price, note, onClick }) {
@@ -2057,6 +3051,7 @@ function Footer({ phone, settings, pages = [] }) {
       href: supportPhone
         ? `tel:${String(supportPhone).replace(/\s+/g, "")}`
         : "#",
+      onClick: () => trackLandingContactClick("Landing footer support", supportPhone),
     },
     { label: "All Products", href: "#products" },
     { label: "Categories", href: "#categories" },
@@ -2238,9 +3233,45 @@ function getProductName(campaign) {
   );
 }
 
+function getLandingProductOptions(campaign, fallback) {
+  const regularData = parseObject(campaign?.regularData);
+  const configured = Array.isArray(regularData.productOptions)
+    ? regularData.productOptions
+    : [];
+  const options = configured
+    .map((item) => ({
+      id: String(item.productId || item.id || item.name || ""),
+      productId: item.productId || item.id || "",
+      name: item.name || "Product",
+      price: toNumber(item.price, fallback.price),
+      originalPrice: toNumber(item.originalPrice, fallback.originalPrice),
+      image: imageUrl(item.image) || fallback.bannerImage || heroImage,
+    }))
+    .filter((item) => item.id && item.name && item.price > 0);
+
+  if (options.length) return options;
+
+  return [
+    {
+      id: String(campaign?.productId || campaign?.Id || "campaign-product"),
+      productId: campaign?.productId || campaign?.Id || "",
+      name: fallback.productName,
+      price: fallback.price,
+      originalPrice: fallback.originalPrice,
+      image: fallback.bannerImage || heroImage,
+    },
+  ];
+}
+
+function initializeSelectedProducts(options) {
+  const first = options[0];
+  return first ? [{ ...first, qty: 1 }] : [];
+}
+
 function normalizeTemplate(value) {
   const template = String(value || "Template Design 1").trim();
   if (
+    template === "Murda Moshari Offer" ||
     template === "Giveaway Campaign" ||
     template === "Template Design 2" ||
     template === "Template Design 3"

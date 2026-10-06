@@ -120,7 +120,7 @@ export default function PurchaseListPage({ onNavigate, onEditPurchase }) {
       </form>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         <div className="px-4 py-3 flex items-center gap-2 border-b border-gray-100">
           <span className="text-xs text-gray-500">Show</span>
           <select value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
@@ -129,7 +129,7 @@ export default function PurchaseListPage({ onNavigate, onEditPurchase }) {
           </select>
         </div>
 
-        <table className="w-full text-xs">
+        <table className="w-full min-w-[760px] text-xs">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
               {['SL', 'Name', 'Date', 'Supplier', 'Amount', 'Qty', 'Status', 'Action'].map((h) => (

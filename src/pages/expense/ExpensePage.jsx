@@ -57,7 +57,7 @@ export default function ExpensePage({ expenses, onCreate, onEdit, onDelete }) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-slate-100">
                 <SortableHeader label="SL" sortKey="id" sort={sort} onSort={toggleSort} className="w-24" />

@@ -1,22 +1,47 @@
 import { apiRequest } from "../utils/apiClient";
 
 let initializationPromise = null;
+// Dashboard previews must not send real events to the live pixels / Conversions API.
+let trackingSuspended = false;
+
+export function setTrackingSuspended(value) {
+  trackingSuspended = Boolean(value);
+}
 let trackingConfig = { metaPixels: [], tiktokPixels: [], googleAds: [] };
 
 const META_EVENT_NAMES = {
   PageView: "PageView",
   ViewContent: "ViewContent",
+  Search: "Search",
   InitiateCheckout: "InitiateCheckout",
+  AddPaymentInfo: "AddPaymentInfo",
   AddToCart: "AddToCart",
+  Lead: "Lead",
+  Contact: "Contact",
   Purchase: "Purchase",
 };
 
 const TIKTOK_EVENT_NAMES = {
   PageView: "Pageview",
   ViewContent: "ViewContent",
+  Search: "Search",
   InitiateCheckout: "InitiateCheckout",
+  AddPaymentInfo: "AddPaymentInfo",
   AddToCart: "AddToCart",
+  Lead: "SubmitForm",
+  Contact: "Contact",
   Purchase: "CompletePayment",
+};
+
+const GOOGLE_EVENT_NAMES = {
+  ViewContent: "view_item",
+  Search: "search",
+  AddToCart: "add_to_cart",
+  InitiateCheckout: "begin_checkout",
+  AddPaymentInfo: "add_payment_info",
+  Lead: "generate_lead",
+  Contact: "contact",
+  Purchase: "purchase",
 };
 
 function createEventId(eventName) {
@@ -41,6 +66,9 @@ function getClickData() {
   if (typeof window === "undefined") return {};
   const params = new URLSearchParams(window.location.search);
   const fbclid = params.get("fbclid");
+  const gclid = params.get("gclid");
+  const gbraid = params.get("gbraid");
+  const wbraid = params.get("wbraid");
   return {
     fbp: getCookie("_fbp") || undefined,
     fbc:
@@ -48,6 +76,9 @@ function getClickData() {
       (fbclid ? `fb.1.${Date.now()}.${fbclid}` : undefined),
     ttp: getCookie("_ttp") || undefined,
     ttclid: params.get("ttclid") || undefined,
+    gclid: gclid || undefined,
+    gbraid: gbraid || undefined,
+    wbraid: wbraid || undefined,
   };
 }
 
@@ -65,11 +96,11 @@ function installMetaPixel() {
     window.fbq = fbq;
     window._fbq = fbq;
   }
-  if (!document.querySelector("script[data-homzify-meta-pixel]")) {
+  if (!document.querySelector("script[data-holydeen-meta-pixel]")) {
     const script = document.createElement("script");
     script.async = true;
     script.src = "https://connect.facebook.net/en_US/fbevents.js";
-    script.dataset.homzifyMetaPixel = "true";
+    script.dataset.holydeenMetaPixel = "true";
     document.head.appendChild(script);
   }
 }
@@ -115,7 +146,7 @@ function installTiktokPixel() {
     const script = document.createElement("script");
     script.async = true;
     script.src = `${ttq._i[pixelCode]._u}?sdkid=${encodeURIComponent(pixelCode)}&lib=ttq`;
-    script.dataset.homzifyTiktokPixel = pixelCode;
+    script.dataset.holydeenTiktokPixel = pixelCode;
     document.head.appendChild(script);
   };
 }
@@ -128,11 +159,11 @@ function installGoogleTag(conversionId) {
     function gtag() {
       window.dataLayer.push(arguments);
     };
-  if (!document.querySelector("script[data-homzify-google-tag]")) {
+  if (!document.querySelector("script[data-holydeen-google-tag]")) {
     const script = document.createElement("script");
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(conversionId)}`;
-    script.dataset.homzifyGoogleTag = "true";
+    script.dataset.holydeenGoogleTag = "true";
     document.head.appendChild(script);
     window.gtag("js", new Date());
   }
@@ -205,18 +236,41 @@ function trackInBrowser(eventName, eventId, customData) {
       });
     });
   }
+
+  const googleEventName = GOOGLE_EVENT_NAMES[eventName];
+  if (googleEventName) {
+    trackingConfig.googleAds.forEach((config) => {
+      if (!config.conversionId) return;
+      window.gtag?.("event", googleEventName, {
+        value: customData.value,
+        currency: customData.currency || "BDT",
+        items: (customData.content_ids || []).map((item) => ({
+          item_id: String(item),
+          item_name: customData.content_name || "",
+          quantity: customData.num_items || 1,
+        })),
+      });
+    });
+  }
+}
+
+export function getTrackingClickData() {
+  return getClickData();
 }
 
 export async function trackMarketingEvent(
   eventName,
-  { userData = {}, customData = {} } = {},
+  { userData = {}, customData = {}, eventId: suppliedEventId, server = true, enabled = true } = {},
 ) {
+  if (!enabled || trackingSuspended) return null;
   try {
     await initializeTracking();
-    const eventId = createEventId(eventName);
+    if (!enabled || trackingSuspended) return null;
+    const eventId = suppliedEventId || createEventId(eventName);
     trackInBrowser(eventName, eventId, customData);
+    if (!server) return eventId;
     const clickData = getClickData();
-    await apiRequest("/tracking/events", {
+    const response = await apiRequest("/tracking/events", {
       method: "POST",
       body: JSON.stringify({
         eventName,
@@ -227,7 +281,9 @@ export async function trackMarketingEvent(
         customData,
       }),
     });
-    return eventId;
+    const failures = response?.data?.results?.filter((item) => !item.ok && !item.skipped) || [];
+    if (failures.length) console.warn('Marketing delivery failed', failures.map(({ platform, status }) => ({ platform, status })));
+    return failures.length ? null : eventId;
   } catch (error) {
     console.warn(`Marketing event "${eventName}" failed`, error);
     return null;

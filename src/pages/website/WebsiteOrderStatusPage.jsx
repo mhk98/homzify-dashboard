@@ -46,11 +46,11 @@ export default function WebsiteOrderStatusPage({ onEdit, onCreate }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         {loading && <div className="text-center py-10 text-gray-400 text-sm">Loading...</div>}
         {!loading && error && <div className="text-center py-10 text-red-400 text-sm">{error}</div>}
         {!loading && !error && (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-6 py-3 text-left text-gray-500 font-semibold w-24">SL</th>

@@ -29,25 +29,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="min-h-screen flex bg-blue-50">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 flex-col items-center justify-center p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-950 via-blue-800 to-blue-700 flex-col items-center justify-center p-12 relative overflow-hidden">
         {/* Background decoration */}
-        <div className="absolute top-0 left-0 w-72 h-72 bg-orange-500/10 rounded-full -translate-x-1/3 -translate-y-1/3" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full translate-x-1/3 translate-y-1/3" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-400 via-orange-400 to-red-500" />
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-r from-red-500/15 via-orange-400/15 to-blue-400/15" />
 
         <div className="relative z-10 text-center">
-          <div className="w-20 h-20 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-orange-400 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-950/30">
             <ShoppingBag size={40} className="text-white" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-3">
-            Homzify Dashboard
+            Holy DeenDashboard
           </h1>
-          <p className="text-slate-400 text-lg mb-10">
+          <p className="text-blue-100 text-lg mb-10">
             Complete E-Commerce Management System
           </p>
 
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 text-center">
             {[
               { label: "Orders", value: "Manage" },
               { label: "Products", value: "Control" },
@@ -55,12 +55,12 @@ export default function LoginPage() {
             ].map((item) => (
               <div
                 key={item.label}
-                className="bg-white/5 backdrop-blur rounded-xl p-4 border border-white/10"
+                className="bg-white/10 backdrop-blur rounded-xl p-4 border border-white/10"
               >
-                <p className="text-orange-400 font-semibold text-sm">
+                <p className="text-orange-300 font-semibold text-sm">
                   {item.value}
                 </p>
-                <p className="text-slate-400 text-xs mt-1">{item.label}</p>
+                <p className="text-blue-100 text-xs mt-1">{item.label}</p>
               </div>
             ))}
           </div>
@@ -72,11 +72,11 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-orange-400 to-red-500 rounded-xl flex items-center justify-center">
               <ShoppingBag size={20} className="text-white" />
             </div>
             <span className="text-xl font-bold text-slate-800">
-              Homzify Dashboard
+              Holy DeenDashboard
             </span>
           </div>
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@example.com"
                   autoComplete="email"
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 text-sm transition placeholder-gray-400"
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 text-sm transition placeholder-gray-400"
                 />
               </div>
 
@@ -123,7 +123,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     autoComplete="current-password"
-                    className="w-full px-4 py-2.5 pr-11 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 text-sm transition placeholder-gray-400"
+                    className="w-full px-4 py-2.5 pr-11 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 text-sm transition placeholder-gray-400"
                   />
                   <button
                     type="button"
@@ -142,7 +142,7 @@ export default function LoginPage() {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
                   />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>
@@ -152,7 +152,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold py-2.5 rounded-lg transition text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2.5 rounded-lg transition text-sm"
               >
                 {loading ? (
                   <svg

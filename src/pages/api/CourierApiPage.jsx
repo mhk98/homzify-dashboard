@@ -7,7 +7,7 @@ const SETTING_TYPE = 'courier_api';
 
 const DEFAULT_CONFIGS = {
   steadfast: { label: 'Steadfast', title: 'SteadFast Courier API', apiKey: '', secretKey: '', url: 'https://portal.packzy.com/api/v1/create_order', status: true },
-  pathao:    { label: 'Pathao',    title: 'Pathao Courier API',    apiKey: '', secretKey: '', url: 'https://api-hermes.pathao.com/aladdin/api/v1/orders', status: false },
+  pathao:    { label: 'Pathao',    title: 'Pathao Courier API',    apiKey: '', secretKey: '', clientId: '', clientSecret: '', username: '', password: '', storeId: '', deliveryType: 48, itemType: 2, itemWeight: 0.5, url: 'https://api-hermes.pathao.com/aladdin/api/v1/orders', status: false },
 };
 
 export default function CourierApiPage() {
@@ -80,12 +80,34 @@ export default function CourierApiPage() {
           <form onSubmit={handleSubmit} className="rounded bg-gray-100 p-6 lg:p-8">
             <h2 className="mb-3 text-lg font-bold text-gray-800">{form.title}</h2>
             <div className="grid gap-6 lg:grid-cols-2">
-              <Field label="API key" required>
-                <TextInput value={form.apiKey} onChange={(v) => setField('apiKey', v)} />
-              </Field>
-              <Field label="Secret key" required>
-                <TextInput value={form.secretKey} onChange={(v) => setField('secretKey', v)} />
-              </Field>
+              {activeCourier === 'pathao' ? (
+                <>
+                  <Field label="Client ID / API key" required>
+                    <TextInput value={form.clientId || form.apiKey} onChange={(v) => { setField('clientId', v); setField('apiKey', v); }} />
+                  </Field>
+                  <Field label="Client Secret / Secret key" required>
+                    <TextInput value={form.clientSecret || form.secretKey} onChange={(v) => { setField('clientSecret', v); setField('secretKey', v); }} />
+                  </Field>
+                  <Field label="Username / Email" required>
+                    <TextInput value={form.username} onChange={(v) => setField('username', v)} />
+                  </Field>
+                  <Field label="Password" required>
+                    <TextInput type="password" value={form.password} onChange={(v) => setField('password', v)} />
+                  </Field>
+                  <Field label="Store ID" required>
+                    <TextInput type="number" value={form.storeId} onChange={(v) => setField('storeId', v)} />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="API key" required>
+                    <TextInput value={form.apiKey} onChange={(v) => setField('apiKey', v)} />
+                  </Field>
+                  <Field label="Secret key" required>
+                    <TextInput value={form.secretKey} onChange={(v) => setField('secretKey', v)} />
+                  </Field>
+                </>
+              )}
               <Field label="URL" required>
                 <TextInput type="url" value={form.url} onChange={(v) => setField('url', v)} />
               </Field>

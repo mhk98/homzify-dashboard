@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit2, ChevronLeft, ChevronRight, Plus, ToggleLeft, X } from 'lucide-react';
+import { Edit2, ChevronLeft, ChevronRight, Plus, ToggleLeft, ToggleRight, Loader2, X } from 'lucide-react';
 import { useAttributes } from '../../hooks/useProducts';
 import { attributeService } from '../../services/productService';
 
@@ -7,6 +7,7 @@ const exportButtons = ['Copy', 'Print', 'PDF'];
 
 export default function AttributePage({ onNavigate, onEditAttribute }) {
   const [search, setSearch] = useState('');
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
   const { data: attributes, meta, loading, error, refetch } = useAttributes({ searchTerm: search, limit: 100 });
 
   async function handleDelete(id) {
@@ -16,6 +17,23 @@ export default function AttributePage({ onNavigate, onEditAttribute }) {
       refetch();
     } catch (e) {
       alert(e.message);
+    }
+  }
+
+  async function handleToggleStatus(attr) {
+    const active = attr.status === 'Active' || attr.status === 'active';
+    const nextStatus = active ? 'Inactive' : 'Active';
+    setStatusUpdatingId(attr.Id);
+    try {
+      await attributeService.update(attr.Id, {
+        name: attr.name,
+        status: nextStatus,
+      });
+      refetch();
+    } catch (e) {
+      alert(e.message || 'Attribute status update করতে সমস্যা হয়েছে');
+    } finally {
+      setStatusUpdatingId(null);
     }
   }
 
@@ -96,6 +114,11 @@ export default function AttributePage({ onNavigate, onEditAttribute }) {
                         <ActionButton title="Delete" className="bg-red-500 hover:bg-red-600" onClick={() => handleDelete(attr.Id)}>
                           <X size={14} />
                         </ActionButton>
+                        <StatusToggleButton
+                          active={attr.status === 'Active' || attr.status === 'active'}
+                          loading={statusUpdatingId === attr.Id}
+                          onClick={() => handleToggleStatus(attr)}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -154,6 +177,20 @@ function ActionButton({ title, className, onClick, children }) {
       className={`flex h-7 w-8 items-center justify-center rounded text-white transition ${className}`}
     >
       {children}
+    </button>
+  );
+}
+
+function StatusToggleButton({ active, loading, onClick }) {
+  return (
+    <button
+      type="button"
+      title={active ? 'Make Inactive' : 'Make Active'}
+      onClick={onClick}
+      disabled={loading}
+      className={`flex h-7 w-8 items-center justify-center rounded text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${active ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-amber-500 hover:bg-amber-600'}`}
+    >
+      {loading ? <Loader2 size={13} className="animate-spin" /> : active ? <ToggleRight size={15} /> : <ToggleLeft size={15} />}
     </button>
   );
 }

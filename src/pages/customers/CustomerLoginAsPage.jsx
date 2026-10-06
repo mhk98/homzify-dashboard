@@ -201,7 +201,7 @@ export default function CustomerLoginAsPage({ customer, onBack }) {
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-300 mt-auto">
-        <div className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-4 gap-6">
+        <div className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* Logo */}
           <div className="flex items-center gap-3">
             <div
@@ -212,7 +212,7 @@ export default function CustomerLoginAsPage({ customer, onBack }) {
             >
               <span style={{ fontFamily: "serif", fontSize: 20 }}>وجيه</span>
             </div>
-            <span className="text-white font-bold">Homzify</span>
+            <span className="text-white font-bold">Holy Deen</span>
           </div>
 
           {/* Useful Links */}
@@ -276,7 +276,7 @@ export default function CustomerLoginAsPage({ customer, onBack }) {
         </div>
         <div className="border-t border-gray-800 text-center py-2">
           <p className="text-xs text-gray-500">
-            © Homzify <span className="text-blue-400">DeenSoft</span>
+            © Holy Deen<span className="text-blue-400">DigitalEver</span>
           </p>
         </div>
       </footer>

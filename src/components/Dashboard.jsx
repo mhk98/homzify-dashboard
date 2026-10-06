@@ -7,12 +7,32 @@ import DateFilterPanel from "./DateFilterPanel";
 import SalesChart from "./SalesChart";
 import TopProducts from "./TopProducts";
 import StockAlert from "./StockAlert";
+import EmployeeDashboardCharts from "./EmployeeDashboardCharts";
 import { SectionHeader } from "./OrderSummary";
 import { useDashboard } from "../hooks/useDashboard";
+import { useAuth } from "../context/AuthContext";
+
+function getCurrentMonthRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0);
+  const fmt = (date) => date.toISOString().slice(0, 10);
+  return { fromDate: fmt(start), toDate: fmt(end) };
+}
 
 export default function Dashboard() {
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const { user } = useAuth();
+  const isEmployee =
+    String(user?.role || "")
+      .trim()
+      .toLowerCase() === "employee";
+  const currentMonth = getCurrentMonthRange();
+  const [fromDate, setFromDate] = useState(
+    isEmployee ? currentMonth.fromDate : "",
+  );
+  const [toDate, setToDate] = useState(isEmployee ? currentMonth.toDate : "");
 
   const { data, loading } = useDashboard({ fromDate, toDate });
 
@@ -26,6 +46,18 @@ export default function Dashboard() {
   const salesChart = data?.salesChart || [];
   const topProducts = data?.topProducts || [];
   const deliveryStats = data?.deliveryStats || [];
+
+  if (isEmployee) {
+    return (
+      <EmployeeDashboardCharts
+        data={data}
+        loading={loading}
+        fromDate={fromDate}
+        toDate={toDate}
+        onDateRangeChange={handleFilterChange}
+      />
+    );
+  }
 
   return (
     <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -74,9 +106,9 @@ export default function Dashboard() {
 
       {/* Footer */}
       <div className="text-center text-xs text-gray-400 py-2">
-        © Homzify{" "}
+        © Holy Deen{" "}
         <span className="text-blue-500 cursor-pointer hover:underline">
-          DeenSoft
+          DigitalEver
         </span>
       </div>
     </main>

@@ -624,7 +624,7 @@ export default function CreateOrderPage({ onNavigate }) {
 
       {/* Footer */}
       <div className="text-center text-xs text-gray-400 py-1.5 border-t border-gray-100 bg-white flex-shrink-0">
-        © Holy Deen{" "}
+        © Homzify{" "}
         <span className="text-blue-500 cursor-pointer">DigitalEver</span>
       </div>
     </div>

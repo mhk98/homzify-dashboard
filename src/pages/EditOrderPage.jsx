@@ -27,7 +27,11 @@ import { imageUrl } from "../utils/assetUrl";
 
 const deliveryAreas = [
   { label: "ঢাকার ভিতরে ৮০ টাকা", fee: 80 },
-  { label: "ঢাকার বাইরে ১৩০ টাকা", fee: 130, legacyLabels: ["ঢাকার বাইরে ১২০ টাকা"] },
+  {
+    label: "ঢাকার বাইরে ১৩০ টাকা",
+    fee: 130,
+    legacyLabels: ["ঢাকার বাইরে ১২০ টাকা"],
+  },
   { label: "চট্টগ্রাম ১৫০ টাকা", fee: 150 },
   { label: "সিলেট ১৫০ টাকা", fee: 150 },
   { label: "রাজশাহী ১৩০ টাকা", fee: 130 },
@@ -785,7 +789,7 @@ export default function EditOrderPage({
 
       {/* Footer */}
       <div className="text-center text-xs text-gray-400 py-1.5 border-t border-gray-100 bg-white flex-shrink-0">
-        © Holy Deen{" "}
+        © Homzify{" "}
         <span className="text-blue-500 cursor-pointer">DigitalEver</span>
       </div>
     </div>

@@ -233,7 +233,6 @@ const TRANSIENT_SUBPAGE_FALLBACKS = {
   },
 };
 
-
 const PRODUCT_CREATE_ROUTES = {
   create_product: "/products/create",
   create_category: "/products/categories/create",
@@ -458,17 +457,25 @@ function getNavigationStateFromPath(pathname) {
   const path = normalizeRoutePath(pathname);
   if (path === "/" || path === "/dashboard") return DEFAULT_NAVIGATION;
   if (PRODUCT_CREATE_ROUTE_PAGES[path]) {
-    return normalizeNavigationState({ activePage: PRODUCT_CREATE_ROUTE_PAGES[path] });
+    return normalizeNavigationState({
+      activePage: PRODUCT_CREATE_ROUTE_PAGES[path],
+    });
   }
   if (path === "/orders/create") {
     return normalizeNavigationState({ activePage: "create_order" });
   }
   if (path === "/orders") {
-    return normalizeNavigationState({ activePage: "orders", activeOrderStatus: "all" });
+    return normalizeNavigationState({
+      activePage: "orders",
+      activeOrderStatus: "all",
+    });
   }
   if (path.startsWith("/orders/")) {
     const status = segmentToKey(path.replace(/^\/orders\//, "")) || "all";
-    return normalizeNavigationState({ activePage: "orders", activeOrderStatus: status });
+    return normalizeNavigationState({
+      activePage: "orders",
+      activeOrderStatus: status,
+    });
   }
 
   const [, baseSegment, ...rest] = path.split("/");
@@ -483,7 +490,8 @@ function getNavigationStateFromPath(pathname) {
 
 function getPathFromNavigationState(state = {}) {
   const nav = normalizeNavigationState(state);
-  if (PRODUCT_CREATE_ROUTES[nav.activePage]) return PRODUCT_CREATE_ROUTES[nav.activePage];
+  if (PRODUCT_CREATE_ROUTES[nav.activePage])
+    return PRODUCT_CREATE_ROUTES[nav.activePage];
   if (nav.activePage === "dashboard") return "/";
   if (nav.activePage === "create_order") return "/orders/create";
   if (nav.activePage === "orders") {
@@ -496,7 +504,8 @@ function getPathFromNavigationState(state = {}) {
     (item) => item.activePage === nav.activePage,
   );
   if (!group) return "/";
-  const segment = group.routes[nav[group.stateKey]] ?? group.routes[group.defaultKey] ?? "";
+  const segment =
+    group.routes[nav[group.stateKey]] ?? group.routes[group.defaultKey] ?? "";
   return segment ? `${group.basePath}/${segment}` : group.basePath;
 }
 
@@ -820,7 +829,7 @@ function App() {
       id: 2,
       title: "এ আঘা খাবার ৪টি কারণ",
       imageName: "",
-      imageText: "Holy Deen",
+      imageText: "Homzify",
       imageColor: "linear-gradient(135deg, #0f172a, #4b6b8a)",
       description: "",
       status: false,
@@ -829,7 +838,7 @@ function App() {
   const [selectedBlog, setSelectedBlog] = useState(null);
   const [bannerCategories, setBannerCategories] = useState([
     { id: 1, name: "Nazmul Hasan", status: true },
-    { id: 2, name: "Welcome to Holy Deen", status: true },
+    { id: 2, name: "Welcome to Homzify", status: true },
   ]);
   const [selectedBannerCategory, setSelectedBannerCategory] = useState(null);
   const [banners, setBanners] = useState([]);

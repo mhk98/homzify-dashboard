@@ -345,7 +345,11 @@ export default function OrdersPage({
     const current = order.fraudGuard?.status || order.fraudStatus || "";
     const nextStatus = current === "fake" ? "safe" : "fake";
     const label = nextStatus === "fake" ? "Fake Order" : "Safe";
-    if (!window.confirm(`${formatInvoiceNumber(order, order.Id)} কে ${label} mark করবেন?`))
+    if (
+      !window.confirm(
+        `${formatInvoiceNumber(order, order.Id)} কে ${label} mark করবেন?`,
+      )
+    )
       return;
     try {
       await orderService.updateOrder(order.Id, {
@@ -417,7 +421,9 @@ export default function OrdersPage({
 
   async function handleSendToPathao(order) {
     if (
-      !window.confirm(`${formatInvoiceNumber(order, order.Id)} Pathao courier এ পাঠাবেন?`)
+      !window.confirm(
+        `${formatInvoiceNumber(order, order.Id)} Pathao courier এ পাঠাবেন?`,
+      )
     )
       return;
     setCourierBusyId(order.Id);
@@ -1738,12 +1744,12 @@ function OrderInvoicePage({ order, settings }) {
   const paymentMethod = formatPaymentMethod(
     order.paymentMethod || meta.paymentMethod,
   );
-  const sellerName =
-    getSiteName(settings) || settings.companyName || "Holy Deen";
-  const sellerPhone = settings.phone || settings.phoneNumber || "+880 1354-427155";
-  const sellerEmail = settings.email || "holydeenbd@gmail.com";
+  const sellerName = getSiteName(settings) || settings.companyName || "Homzify";
+  const sellerPhone =
+    settings.phone || settings.phoneNumber || "+880 1777-184491";
+  const sellerEmail = settings.email || "homzify.bd@gmail.com";
   const sellerAddress =
-    settings.address || "House-13, Block-D, Road-1, Mirpur-2, Dhaka";
+    settings.address || "Address- 15/C, Taltola, Khilgao, Dhaka";
   const logo = getLogo(settings) || "/homzify-logo.jpeg";
   const customerAddress =
     order.customerAddress ||

@@ -9,7 +9,7 @@
 body {
   margin: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #F8F6F0;
+  background: #F4F7FA;
 }
 
 #root {
@@ -24,10 +24,10 @@ body {
   width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #1C2744;
+  background: #062A55;
 }
 ::-webkit-scrollbar-thumb {
-  background: #C39A28;
+  background: #00B0BF;
   border-radius: 2px;
 }
 
